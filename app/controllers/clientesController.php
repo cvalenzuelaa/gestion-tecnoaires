@@ -45,78 +45,37 @@ class ClientesController
         $this->clienteModel = new ClientesModel();
     }
 
-    /**
-     * Obtener todos los clientes
-     */
-    public function getAll()
-    {
-        return $this->clienteModel->getAll();
-    }
-
-    /**
-     * Obtener cliente por ID
-     */
-    public function getById($id)
-    {
-        if ($id === null) {
-            return ["error" => "ID no proporcionado."];
-        }
+    public function getAll() { return $this->clienteModel->getAll(); }
+    
+    public function getById($id) {
+        if ($id === null) return ["error" => "ID no proporcionado."];
         return $this->clienteModel->getById($id);
     }
 
-    /**
-     * Buscar cliente por nombre
-     */
-    public function buscarPorNombre($nombre)
-    {
-        if (empty($nombre)) {
-            return ["error" => "Nombre no proporcionado."];
-        }
+    public function buscarPorNombre($nombre) {
+        if (empty($nombre)) return ["error" => "Nombre no proporcionado."];
         return $this->clienteModel->buscarPorNombre($nombre);
     }
 
-    /**
-     * Buscar cliente por RUT
-     */
-    public function buscarPorRut($rut)
-    {
-        if (empty($rut)) {
-            return ["error" => "RUT no proporcionado."];
-        }
+    public function buscarPorRut($rut) {
+        if (empty($rut)) return ["error" => "RUT no proporcionado."];
         return $this->clienteModel->buscarPorRut($rut);
     }
 
-    /**
-     * Insertar nuevo cliente
-     */
-    public function insert($arr)
-    {
+    public function insert($arr) {
         if (empty($arr['nombre']) || empty($arr['email']) || empty($arr['rut'])) {
-            return ["error" => "Faltan campos obligatorios (nombre, email, rut)."];
+            return ["error" => "Faltan campos obligatorios."];
         }
-        $arr['estado'] = 'activo';
         return $this->clienteModel->insert($arr);
     }
 
-    /**
-     * Actualizar cliente
-     */
-    public function update($arr)
-    {
-        if (empty($arr['idcliente'])) {
-            return ["error" => "ID de cliente no proporcionado."];
-        }
+    public function update($arr) {
+        if (empty($arr['idcliente'])) return ["error" => "ID no proporcionado."];
         return $this->clienteModel->update($arr);
     }
 
-    /**
-     * Eliminar cliente (soft delete)
-     */
-    public function softDelete($id)
-    {
-        if ($id === null) {
-            return ["error" => "ID no proporcionado."];
-        }
+    public function softDelete($id) {
+        if ($id === null) return ["error" => "ID no proporcionado."];
         return $this->clienteModel->softDelete($id);
     }
 }

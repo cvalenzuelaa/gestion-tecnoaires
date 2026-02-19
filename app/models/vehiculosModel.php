@@ -11,13 +11,10 @@ class VehiculosModel
         $this->conn = $con->getConexion();
     }
 
-    /**
-     * Obtener todos los vehículos
-     */
     public function getAll()
     {
         try {
-            $sql = "SELECT * FROM vehiculos WHERE estado != 'eliminado'";
+            $sql = "SELECT * FROM vehiculos";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -26,15 +23,12 @@ class VehiculosModel
         }
     }
 
-    /**
-     * Obtener vehículo por ID
-     */
     public function getById($id)
     {
         try {
-            $sql = "SELECT * FROM vehiculos WHERE idvehiculo = :id AND estado != 'eliminado'";
+            $sql = "SELECT * FROM vehiculos WHERE idvehiculo = :id";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->bindParam(':id', $id, PDO::PARAM_STR);
             $stmt->execute();
             return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -43,96 +37,76 @@ class VehiculosModel
     }
 
     /**
-     * Buscar vehículo por patente
+     * Obtener historial combinado.
+     * Ordenes e Informes se buscan por idvehiculo.
+     * Cotizaciones y Facturas se buscan por idcliente (ya que no tienen idvehiculo en tu DB).
      */
-    public function buscarPorPatente($patente)
-    {
-        try {
-            $sql = "SELECT * FROM vehiculos WHERE patente LIKE :patente AND estado != 'eliminado'";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bindValue(':patente', "%{$patente}%", PDO::PARAM_STR);
-            $stmt->execute();
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            return ["error" => $e->getMessage()];
-        }
-    }
-
-    /**
-     * Obtener vehículos del cliente
-     */
-    public function obtenerPorCliente($idcliente)
-    {
-        try {
-            $sql = "SELECT * FROM vehiculos WHERE idcliente = :idcliente AND estado != 'eliminado'";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':idcliente', $idcliente, PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            return ["error" => $e->getMessage()];
-        }
-    }
-
-    /**
-     * Obtener historial completo de un vehículo
-     * (Cotizaciones, Órdenes, Informes, Facturas)
-     */
-    public function obtenerHistorial($idvehiculo)
+    public function obtenerHistorial($idvehiculo, $idcliente)
     {
         try {
             $sql = "
+            -- Cotizaciones (Vinculadas al Cliente)
             SELECT 
                 'cotizacion' as tipo,
                 c.idcotizacion as id,
+                c.folio as folio,
                 c.fecha_emision as fecha,
                 c.total_final as monto,
                 c.estado,
-                NULL as descripcion
+                'Cotización Cliente' as descripcion
             FROM cotizaciones c
-            WHERE c.idvehiculo = :idvehiculo AND c.estado != 'eliminado'
+            WHERE c.idcliente = :idcliente
             
             UNION ALL
             
+            -- Ordenes de Servicio (Vinculadas al Vehículo)
             SELECT 
                 'orden' as tipo,
                 o.idorden as id,
-                o.fecha_creacion as fecha,
+                o.folio as folio,
+                o.fecha_ingreso as fecha,
                 NULL as monto,
                 o.estado,
-                o.descripcion
+                o.solicitud_cliente as descripcion
             FROM ordenes_servicio o
-            WHERE o.idvehiculo = :idvehiculo AND o.estado != 'eliminado'
+            WHERE o.idvehiculo = :idvehiculo
             
             UNION ALL
             
+            -- Informes Técnicos (Vinculados a Ordenes del Vehículo)
             SELECT 
                 'informe' as tipo,
-                i.idinformacion_tecnica as id,
+                i.idinforme as id,
+                i.folio as folio,
                 i.fecha_informe as fecha,
                 NULL as monto,
-                i.estado,
+                'generado' as estado,
                 i.observaciones as descripcion
             FROM informes_tecnicos i
-            WHERE i.idvehiculo = :idvehiculo AND i.estado != 'eliminado'
+            INNER JOIN ordenes_servicio os ON i.idorden = os.idorden
+            WHERE os.idvehiculo = :idvehiculo
             
             UNION ALL
             
+            -- Facturas (Vinculadas al Cliente)
             SELECT 
                 'factura' as tipo,
                 f.idfactura as id,
-                f.fecha_factura as fecha,
-                f.total_factura as monto,
-                f.estado,
-                NULL as descripcion
+                f.folio_sii as folio,
+                f.fecha_vencimiento as fecha,
+                f.monto as monto,
+                f.estado_pago as estado,
+                'Factura Cliente' as descripcion
             FROM facturas f
-            WHERE f.idvehiculo = :idvehiculo AND f.estado != 'eliminado'
+            WHERE f.idcliente = :idcliente
             
             ORDER BY fecha DESC
+            LIMIT 50
             ";
             
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':idvehiculo', $idvehiculo, PDO::PARAM_INT);
+            $stmt->bindParam(':idvehiculo', $idvehiculo, PDO::PARAM_STR);
+            $stmt->bindParam(':idcliente', $idcliente, PDO::PARAM_STR);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -140,21 +114,18 @@ class VehiculosModel
         }
     }
 
-    /**
-     * Insertar vehículo
-     */
     public function insert($arr)
     {
         try {
-            $sql = "INSERT INTO vehiculos (idcliente, patente, marca, modelo, anio, descripcion, estado) VALUES (:idcliente, :patente, :marca, :modelo, :anio, :descripcion, :estado)";
+            $sql = "INSERT INTO vehiculos (idvehiculo, tipo, marca, modelo, patente, descripcion, idcliente) 
+                    VALUES (UUID_SHORT(), :tipo, :marca, :modelo, :patente, :descripcion, :idcliente)";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':idcliente', $arr['idcliente'], PDO::PARAM_INT);
-            $stmt->bindParam(':patente', $arr['patente'], PDO::PARAM_STR);
+            $stmt->bindParam(':tipo', $arr['tipo'], PDO::PARAM_STR);
             $stmt->bindParam(':marca', $arr['marca'], PDO::PARAM_STR);
             $stmt->bindParam(':modelo', $arr['modelo'], PDO::PARAM_STR);
-            $stmt->bindParam(':anio', $arr['anio'], PDO::PARAM_INT);
+            $stmt->bindParam(':patente', $arr['patente'], PDO::PARAM_STR);
             $stmt->bindParam(':descripcion', $arr['descripcion'], PDO::PARAM_STR);
-            $stmt->bindParam(':estado', $arr['estado'], PDO::PARAM_STR);
+            $stmt->bindParam(':idcliente', $arr['idcliente'], PDO::PARAM_STR);
             $stmt->execute();
             return ($stmt->rowCount() > 0) ? ["success" => "Vehículo creado correctamente."] : ["error" => "No se pudo registrar."];
         } catch (PDOException $e) {
@@ -162,19 +133,16 @@ class VehiculosModel
         }
     }
 
-    /**
-     * Actualizar vehículo
-     */
     public function update($arr)
     {
         try {
-            $sql = "UPDATE vehiculos SET patente = :patente, marca = :marca, modelo = :modelo, anio = :anio, descripcion = :descripcion WHERE idvehiculo = :id";
+            $sql = "UPDATE vehiculos SET tipo = :tipo, marca = :marca, modelo = :modelo, patente = :patente, descripcion = :descripcion WHERE idvehiculo = :id";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':id', $arr['idvehiculo'], PDO::PARAM_INT);
-            $stmt->bindParam(':patente', $arr['patente'], PDO::PARAM_STR);
+            $stmt->bindParam(':id', $arr['idvehiculo'], PDO::PARAM_STR);
+            $stmt->bindParam(':tipo', $arr['tipo'], PDO::PARAM_STR);
             $stmt->bindParam(':marca', $arr['marca'], PDO::PARAM_STR);
             $stmt->bindParam(':modelo', $arr['modelo'], PDO::PARAM_STR);
-            $stmt->bindParam(':anio', $arr['anio'], PDO::PARAM_INT);
+            $stmt->bindParam(':patente', $arr['patente'], PDO::PARAM_STR);
             $stmt->bindParam(':descripcion', $arr['descripcion'], PDO::PARAM_STR);
             $stmt->execute();
             return ($stmt->rowCount() >= 0) ? ["success" => "Vehículo actualizado."] : ["error" => "No se pudo actualizar."];
@@ -183,15 +151,13 @@ class VehiculosModel
         }
     }
 
-    /**
-     * Soft delete
-     */
     public function softDelete($id)
     {
         try {
-            $sql = "UPDATE vehiculos SET estado = 'eliminado' WHERE idvehiculo = :id";
+            // Hard delete
+            $sql = "DELETE FROM vehiculos WHERE idvehiculo = :id";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->bindParam(':id', $id, PDO::PARAM_STR);
             $stmt->execute();
             return ($stmt->rowCount() > 0) ? ["success" => "Vehículo eliminado."] : ["error" => "No se pudo eliminar."];
         } catch (PDOException $e) {

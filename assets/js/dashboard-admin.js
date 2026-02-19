@@ -13,6 +13,10 @@ class DashboardAdmin {
         this.btnBuscar = document.getElementById('btn_buscar');
         this.btnLimpiar = document.getElementById('btn_limpiar');
         this.resultadosContainer = document.getElementById('resultados_container');
+        
+        // Elementos para Nueva Orden
+        this.btnGuardarOrden = document.getElementById('btnGuardarOrden');
+        this.btnGuardarOrden.addEventListener('click', () => this.guardarNuevaOrden());
     }
 
     // Vincular eventos a los botones
@@ -20,12 +24,23 @@ class DashboardAdmin {
         this.btnBuscar.addEventListener('click', () => this.buscar());
         this.btnLimpiar.addEventListener('click', () => this.limpiar());
 
-        // Permitir búsqueda con Enter en los inputs
+        // Implementar Live Search con Debounce
+        const debouncedSearch = this.debounce(() => this.buscar(), 500);
+
         [this.searchPatente, this.searchIdEquipo, this.searchCotizacion, this.searchFactura].forEach(input => {
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') this.buscar();
-            });
+            // Usamos 'input' para detectar cambios en tiempo real
+            input.addEventListener('input', debouncedSearch);
         });
+    }
+
+    // Función Debounce para evitar saturar el servidor
+    debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
     }
 
     // Validar que al menos un campo tenga contenido
@@ -98,7 +113,16 @@ class DashboardAdmin {
     renderizarResultados(datos) {
         let html = '<div class="row g-3">';
 
-        datos.forEach(vehiculo => {
+        datos.forEach(item => {
+            // El controlador devuelve objetos anidados: item.vehiculo, item.cliente, item.historial
+            const v = item.vehiculo || {};
+            const c = item.cliente || {};
+            const h = item.historial || [];
+            
+            // Mapeo seguro de propiedades para evitar errores si vienen null
+            const nombreCliente = c.nombre ? `${c.nombre} ${c.apellido || ''}` : 'Sin cliente';
+            const rutCliente = c.rut || 'N/A';
+            
             html += `
                 <div class="col-lg-12">
                     <div class="card">
@@ -108,12 +132,12 @@ class DashboardAdmin {
                                 <div class="col-auto">
                                     <h5 class="mb-0">
                                         <i class="fas fa-car me-2" style="color: #62B145;"></i>
-                                        ${vehiculo.marca} ${vehiculo.modelo}
+                                        ${v.marca || 'Desconocido'} ${v.modelo || ''}
                                     </h5>
                                 </div>
                                 <div class="col-auto ms-auto">
-                                    <span class="badge badge-info">${vehiculo.patente}</span>
-                                    <span class="badge badge-success">${vehiculo.id_equipo || 'N/A'}</span>
+                                    <span class="badge badge-info">${v.patente || 'S/P'}</span>
+                                    <span class="badge badge-success">${v.idvehiculo || 'N/A'}</span>
                                 </div>
                             </div>
                         </div>
@@ -129,27 +153,27 @@ class DashboardAdmin {
                                         <table class="table table-sm table-borderless">
                                             <tr>
                                                 <td class="fw-bold">Patente:</td>
-                                                <td>${vehiculo.patente}</td>
+                                                <td>${v.patente || '-'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">ID Equipo:</td>
-                                                <td>${vehiculo.id_equipo || 'Sin asignar'}</td>
+                                                <td>${v.idvehiculo || 'Sin asignar'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Marca:</td>
-                                                <td>${vehiculo.marca}</td>
+                                                <td>${v.marca || '-'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Modelo:</td>
-                                                <td>${vehiculo.modelo}</td>
+                                                <td>${v.modelo || '-'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Año:</td>
-                                                <td>${vehiculo.anio || 'N/A'}</td>
+                                                <td>${v.anio || 'N/A'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Color:</td>
-                                                <td>${vehiculo.color || 'N/A'}</td>
+                                                <td>${v.descripcion || 'N/A'}</td>
                                             </tr>
                                         </table>
                                     </div>
@@ -163,27 +187,27 @@ class DashboardAdmin {
                                         <table class="table table-sm table-borderless">
                                             <tr>
                                                 <td class="fw-bold">Nombre:</td>
-                                                <td>${vehiculo.cliente_nombre || 'Sin cliente'}</td>
+                                                <td>${nombreCliente}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Email:</td>
-                                                <td>${vehiculo.cliente_email || 'N/A'}</td>
+                                                <td>${c.email || 'N/A'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Teléfono:</td>
-                                                <td>${vehiculo.cliente_telefono || 'N/A'}</td>
+                                                <td>${c.telefono || 'N/A'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">RUT:</td>
-                                                <td>${vehiculo.cliente_rut || 'N/A'}</td>
+                                                <td>${rutCliente}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Dirección:</td>
-                                                <td>${vehiculo.cliente_direccion || 'N/A'}</td>
+                                                <td>${c.direccion || 'N/A'}</td>
                                             </tr>
                                             <tr>
                                                 <td class="fw-bold">Ciudad:</td>
-                                                <td>${vehiculo.cliente_ciudad || 'N/A'}</td>
+                                                <td>${c.ciudad || 'N/A'}</td>
                                             </tr>
                                         </table>
                                     </div>
@@ -191,21 +215,22 @@ class DashboardAdmin {
                             </div>
 
                             <!-- Historial de Órdenes -->
-                            ${this.renderizarHistorial(vehiculo.historial)}
+                            ${this.renderizarHistorial(h)}
 
                             <!-- Cotizaciones y Facturas -->
-                            ${this.renderizarDocumentos(vehiculo.cotizaciones, vehiculo.facturas)}
+                            <!-- Nota: El historial unificado ya trae cotizaciones y facturas, pero si necesitas separarlo: -->
+                            ${this.renderizarDocumentos(h.filter(x => x.tipo === 'cotizacion'), h.filter(x => x.tipo === 'factura'))}
                         </div>
 
                         <!-- Footer con Acciones -->
                         <div class="card-footer bg-light">
-                            <button class="btn btn-sm btn-primary me-2" onclick="verDetalles('${vehiculo.id_vehiculo}')">
+                            <button class="btn btn-sm btn-primary me-2" onclick="verDetalles('${v.idvehiculo}')">
                                 <i class="fas fa-eye me-1"></i>Ver Detalles Completos
                             </button>
-                            <button class="btn btn-sm btn-success me-2" onclick="crearOrden('${vehiculo.id_vehiculo}')">
+                            <button class="btn btn-sm btn-success me-2" onclick="crearOrden('${v.idvehiculo}', '${v.marca} ${v.modelo}', '${v.patente}')">
                                 <i class="fas fa-plus me-1"></i>Crear Orden
                             </button>
-                            <button class="btn btn-sm btn-secondary" onclick="descargarReporte('${vehiculo.id_vehiculo}')">
+                            <button class="btn btn-sm btn-secondary" onclick="descargarReporte('${v.idvehiculo}')">
                                 <i class="fas fa-download me-1"></i>Descargar Reporte
                             </button>
                         </div>
@@ -250,17 +275,17 @@ class DashboardAdmin {
                         <tbody>
         `;
 
-        historial.forEach(orden => {
-            const estado = this.obtenerBadgeEstado(orden.estado);
+        // Filtramos solo las ordenes para esta tabla específica, ya que el historial trae todo mezclado
+        historial.filter(h => h.tipo === 'orden').forEach(orden => {
             html += `
                 <tr>
-                    <td><strong>#${orden.id_orden}</strong></td>
-                    <td>${this.formatearFecha(orden.fecha_creacion)}</td>
-                    <td>${orden.servicio || 'Mantenimiento'}</td>
-                    <td>${estado}</td>
-                    <td>${orden.tecnico_nombre || 'Sin asignar'}</td>
+                    <td><strong>#${orden.id}</strong></td>
+                    <td>${this.formatearFecha(orden.fecha)}</td>
+                    <td>${orden.descripcion || 'Servicio General'}</td>
+                    <td>${this.obtenerBadgeEstado(orden.estado)}</td>
+                    <td>-</td>
                     <td>
-                        <button class="btn btn-xs btn-info" onclick="verOrden('${orden.id_orden}')">
+                        <button class="btn btn-xs btn-info" onclick="verOrden('${orden.id}')">
                             <i class="fas fa-eye"></i>
                         </button>
                     </td>
@@ -297,8 +322,8 @@ class DashboardAdmin {
                     <a href="#" class="list-group-item list-group-item-action">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">#${cot.id_cotizacion}</h6>
-                                <small class="text-muted">${this.formatearFecha(cot.fecha_creacion)}</small>
+                                <h6 class="mb-1">#${cot.id}</h6>
+                                <small class="text-muted">${this.formatearFecha(cot.fecha)}</small>
                             </div>
                             <span class="badge badge-warning">${this.formatearMoneda(cot.monto)}</span>
                         </div>
@@ -327,8 +352,8 @@ class DashboardAdmin {
                     <a href="#" class="list-group-item list-group-item-action">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">#${fac.id_factura}</h6>
-                                <small class="text-muted">${this.formatearFecha(fac.fecha_creacion)}</small>
+                                <h6 class="mb-1">#${fac.id}</h6>
+                                <small class="text-muted">${this.formatearFecha(fac.fecha)}</small>
                             </div>
                             <span class="badge badge-success">${this.formatearMoneda(fac.monto)}</span>
                         </div>
@@ -344,6 +369,61 @@ class DashboardAdmin {
 
         html += '</div>';
         return html;
+    }
+
+    // Guardar Nueva Orden
+    async guardarNuevaOrden() {
+        const form = document.getElementById('formNuevaOrden');
+        const errorDiv = document.getElementById('errorNuevaOrden');
+        const btn = this.btnGuardarOrden;
+        
+        const idVehiculo = document.getElementById('orden_id_vehiculo').value;
+        const solicitud = document.getElementById('orden_solicitud').value.trim();
+        const estado = document.getElementById('orden_estado').value;
+
+        if (!solicitud) {
+            errorDiv.textContent = 'La solicitud del cliente es obligatoria.';
+            errorDiv.classList.remove('d-none');
+            return;
+        }
+
+        try {
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            errorDiv.classList.add('d-none');
+
+            const datos = new URLSearchParams({
+                accion: 'insert',
+                idvehiculo: idVehiculo,
+                solicitud_cliente: solicitud,
+                estado: estado
+            });
+
+            const response = await fetch('/app/controllers/ordenesController.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: datos
+            });
+
+            const res = await response.json();
+
+            if (res.success) {
+                // Cerrar modal y recargar búsqueda para ver la nueva orden
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaOrden'));
+                modal.hide();
+                form.reset();
+                alert('Orden creada exitosamente');
+                this.buscar(); // Refrescar resultados
+            } else {
+                throw new Error(res.error || 'Error al crear la orden');
+            }
+        } catch (error) {
+            errorDiv.textContent = error.message;
+            errorDiv.classList.remove('d-none');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Crear Orden';
+        }
     }
 
     // Obtener badge según estado
@@ -422,22 +502,85 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Funciones globales para botones de acciones
-function verDetalles(idVehiculo) {
-    console.log('Ver detalles del vehículo:', idVehiculo);
-    // Aquí irá la lógica para ver detalles completos
+async function verDetalles(idVehiculo) {
+    const modalEl = document.getElementById('modalDetallesVehiculo');
+    const modalBody = document.getElementById('modalBodyDetalles');
+    const modal = new bootstrap.Modal(modalEl);
+    
+    modal.show();
+    modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">Cargando información...</p></div>';
+
+    try {
+        // Reutilizamos la búsqueda por ID para traer todo (vehículo, cliente, historial)
+        const response = await fetch('/app/controllers/vehiculosController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'buscar', id_equipo: idVehiculo })
+        });
+        
+        const res = await response.json();
+        
+        if (res.error || !res.length) {
+            modalBody.innerHTML = '<div class="alert alert-warning">No se pudo cargar la información del vehículo.</div>';
+            return;
+        }
+
+        // Como el controller devuelve un array, tomamos el primero (búsqueda exacta por ID)
+        const data = res[0];
+        
+        // Renderizamos usando una instancia temporal del Dashboard para aprovechar sus métodos
+        const dashboard = new DashboardAdmin();
+        // Hack: Limpiamos el container temporalmente para generar el HTML solo de este item
+        const tempContainer = document.createElement('div');
+        dashboard.resultadosContainer = tempContainer;
+        dashboard.renderizarResultados([data]);
+        
+        modalBody.innerHTML = tempContainer.innerHTML;
+
+    } catch (e) {
+        console.error(e);
+        modalBody.innerHTML = '<div class="alert alert-danger">Error de conexión.</div>';
+    }
 }
 
-function crearOrden(idVehiculo) {
-    console.log('Crear orden para vehículo:', idVehiculo);
-    // Aquí irá la lógica para crear una nueva orden
+function crearOrden(idVehiculo, descripcionVehiculo, patente) {
+    const modal = new bootstrap.Modal(document.getElementById('modalNuevaOrden'));
+    
+    document.getElementById('orden_id_vehiculo').value = idVehiculo;
+    document.getElementById('orden_vehiculo_info').value = `${descripcionVehiculo} (${patente})`;
+    document.getElementById('orden_solicitud').value = '';
+    document.getElementById('errorNuevaOrden').classList.add('d-none');
+    
+    modal.show();
 }
 
 function descargarReporte(idVehiculo) {
-    console.log('Descargar reporte del vehículo:', idVehiculo);
-    // Aquí irá la lógica para descargar el reporte
+    alert('Funcionalidad de descarga de reporte en construcción para ID: ' + idVehiculo);
 }
 
-function verOrden(idOrden) {
-    console.log('Ver orden:', idOrden);
-    // Aquí irá la lógica para ver la orden
+async function verOrden(idOrden) {
+    const modal = new bootstrap.Modal(document.getElementById('modalVerOrden'));
+    
+    try {
+        const response = await fetch('/app/controllers/ordenesController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getById', id: idOrden })
+        });
+        
+        const orden = await response.json();
+        
+        if (orden && !orden.error) {
+            document.getElementById('view_orden_folio').textContent = orden.folio || 'S/F';
+            document.getElementById('view_orden_fecha').textContent = orden.fecha_ingreso || '-';
+            document.getElementById('view_orden_estado').textContent = orden.estado || '-';
+            document.getElementById('view_orden_solicitud').textContent = orden.solicitud_cliente || '-';
+            modal.show();
+        } else {
+            alert('No se pudo cargar la orden.');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error al conectar con el servidor.');
+    }
 }

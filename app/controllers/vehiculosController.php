@@ -45,66 +45,70 @@ class VehiculosController
         $this->clienteModel = new ClientesModel();
     }
 
-    /**
-     * Búsqueda unificada por patente, id_equipo, cotización o factura
-     */
     public function buscar($arr)
     {
-        $patente = $arr['patente'] ?? null;
-        $id_equipo = $arr['id_equipo'] ?? null;
-        $cotizacion = $arr['cotizacion'] ?? null;
-        $factura = $arr['factura'] ?? null;
+        $patente = isset($arr['patente']) ? trim($arr['patente']) : null;
+        $id_equipo = isset($arr['id_equipo']) ? trim($arr['id_equipo']) : null;
+        $cotizacion = isset($arr['cotizacion']) ? trim($arr['cotizacion']) : null;
+        $factura = isset($arr['factura']) ? trim($arr['factura']) : null;
 
-        $resultado = [];
+        $vehiculosEncontrados = [];
 
-        // Búsqueda por patente
+        // 1. Búsqueda por patente
         if (!empty($patente)) {
-            $vehiculos = $this->vehiculoModel->buscarPorPatente($patente);
-            if (!isset($vehiculos['error']) && !empty($vehiculos)) {
-                foreach ($vehiculos as $vehiculo) {
-                    $resultado[] = $this->construirResultado($vehiculo);
-                }
-                return $resultado;
-            }
+            $vehiculosEncontrados = $this->buscarSQL("SELECT * FROM vehiculos WHERE patente LIKE :val LIMIT 20", $patente);
+        }
+        // 2. Búsqueda por ID equipo
+        elseif (!empty($id_equipo)) {
+            $vehiculosEncontrados = $this->buscarSQL("SELECT * FROM vehiculos WHERE idvehiculo LIKE :val LIMIT 20", $id_equipo);
+        }
+        // 3. Búsqueda por Cotización (Folio) -> Busca Cliente -> Busca Vehículos
+        elseif (!empty($cotizacion)) {
+            $sql = "SELECT v.* FROM vehiculos v 
+                    INNER JOIN clientes cl ON v.idcliente = cl.idcliente 
+                    INNER JOIN cotizaciones c ON c.idcliente = cl.idcliente 
+                    WHERE c.folio LIKE :val LIMIT 20";
+            $vehiculosEncontrados = $this->buscarSQL($sql, $cotizacion);
+        }
+        // 4. Búsqueda por Factura (Folio SII) -> Busca Cliente -> Busca Vehículos
+        elseif (!empty($factura)) {
+            $sql = "SELECT v.* FROM vehiculos v 
+                    INNER JOIN clientes cl ON v.idcliente = cl.idcliente 
+                    INNER JOIN facturas f ON f.idcliente = cl.idcliente 
+                    WHERE f.folio_sii LIKE :val LIMIT 20";
+            $vehiculosEncontrados = $this->buscarSQL($sql, $factura);
         }
 
-        // Búsqueda por ID equipo (idvehiculo)
-        if (!empty($id_equipo)) {
-            $vehiculo = $this->vehiculoModel->getById($id_equipo);
-            if (!isset($vehiculo['error']) && $vehiculo) {
-                return [$this->construirResultado($vehiculo)];
-            }
+        if (empty($vehiculosEncontrados)) {
+            return ["error" => "No se encontraron resultados."];
         }
 
-        // Búsqueda por cotización
-        if (!empty($cotizacion)) {
-            $vehiculo = $this->buscarPorCotizacion($cotizacion);
-            if ($vehiculo) {
-                return [$this->construirResultado($vehiculo)];
-            }
+        // Construir respuesta completa
+        $resultado = [];
+        foreach ($vehiculosEncontrados as $vehiculo) {
+            $resultado[] = $this->construirResultado($vehiculo);
         }
-
-        // Búsqueda por factura
-        if (!empty($factura)) {
-            $vehiculo = $this->buscarPorFactura($factura);
-            if ($vehiculo) {
-                return [$this->construirResultado($vehiculo)];
-            }
-        }
-
-        return ["error" => "No se encontraron resultados."];
+        return $resultado;
     }
 
-    /**
-     * Construir objeto de resultado completo
-     */
+    private function buscarSQL($sql, $valor) {
+        try {
+            $con = new Conexion();
+            $conn = $con->getConexion();
+            $stmt = $conn->prepare($sql);
+            $stmt->bindValue(':val', "%{$valor}%", PDO::PARAM_STR);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
     private function construirResultado($vehiculo)
     {
-        // Obtener datos del cliente
         $cliente = $this->clienteModel->getById($vehiculo['idcliente']);
-
-        // Obtener historial del vehículo
-        $historial = $this->vehiculoModel->obtenerHistorial($vehiculo['idvehiculo']);
+        // Pasamos ambos IDs para armar el historial mixto
+        $historial = $this->vehiculoModel->obtenerHistorial($vehiculo['idvehiculo'], $vehiculo['idcliente']);
 
         return [
             'vehiculo' => $vehiculo,
@@ -113,93 +117,10 @@ class VehiculosController
         ];
     }
 
-    /**
-     * Buscar vehículo por número de cotización
-     */
-    private function buscarPorCotizacion($numeroCotizacion)
-    {
-        try {
-            $con = new Conexion();
-            $conn = $con->getConexion();
-            $sql = "SELECT v.* FROM vehiculos v INNER JOIN cotizaciones c ON v.idvehiculo = c.idvehiculo WHERE c.idcotizacion LIKE :cotizacion LIMIT 1";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindValue(':cotizacion', "%{$numeroCotizacion}%", PDO::PARAM_STR);
-            $stmt->execute();
-            return $stmt->fetch(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Buscar vehículo por número de factura
-     */
-    private function buscarPorFactura($numeroFactura)
-    {
-        try {
-            $con = new Conexion();
-            $conn = $con->getConexion();
-            $sql = "SELECT v.* FROM vehiculos v INNER JOIN facturas f ON v.idvehiculo = f.idvehiculo WHERE f.idfactura LIKE :factura LIMIT 1";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindValue(':factura', "%{$numeroFactura}%", PDO::PARAM_STR);
-            $stmt->execute();
-            return $stmt->fetch(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Obtener todos los vehículos
-     */
-    public function getAll()
-    {
-        return $this->vehiculoModel->getAll();
-    }
-
-    /**
-     * Obtener vehículo por ID
-     */
-    public function getById($id)
-    {
-        if ($id === null) {
-            return ["error" => "ID no proporcionado."];
-        }
-        return $this->vehiculoModel->getById($id);
-    }
-
-    /**
-     * Insertar nuevo vehículo
-     */
-    public function insert($arr)
-    {
-        if (empty($arr['idcliente']) || empty($arr['patente']) || empty($arr['marca']) || empty($arr['modelo'])) {
-            return ["error" => "Faltan campos obligatorios."];
-        }
-        $arr['estado'] = 'activo';
-        return $this->vehiculoModel->insert($arr);
-    }
-
-    /**
-     * Actualizar vehículo
-     */
-    public function update($arr)
-    {
-        if (empty($arr['idvehiculo'])) {
-            return ["error" => "ID de vehículo no proporcionado."];
-        }
-        return $this->vehiculoModel->update($arr);
-    }
-
-    /**
-     * Eliminar vehículo (soft delete)
-     */
-    public function softDelete($id)
-    {
-        if ($id === null) {
-            return ["error" => "ID no proporcionado."];
-        }
-        return $this->vehiculoModel->softDelete($id);
-    }
+    public function getAll() { return $this->vehiculoModel->getAll(); }
+    public function getById($id) { return $this->vehiculoModel->getById($id); }
+    public function insert($arr) { return $this->vehiculoModel->insert($arr); }
+    public function update($arr) { return $this->vehiculoModel->update($arr); }
+    public function softDelete($id) { return $this->vehiculoModel->softDelete($id); }
 }
 ?>
