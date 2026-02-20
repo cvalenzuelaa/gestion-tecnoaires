@@ -45,7 +45,6 @@ class CotizacionesController
 
     public function getAll() { return $this->model->getAll(); }
     public function getById($id) { return $this->model->getById($id); }
-    public function insert($arr) { return $this->model->insert($arr); }
     public function softDelete($id) { return $this->model->softDelete($id); }
 
     public function insert($arr) {
