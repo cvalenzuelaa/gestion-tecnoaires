@@ -107,8 +107,12 @@ class VehiculosController
     private function construirResultado($vehiculo)
     {
         $cliente = $this->clienteModel->getById($vehiculo['idcliente']);
-        // Pasamos ambos IDs para armar el historial mixto
-        $historial = $this->vehiculoModel->obtenerHistorial($vehiculo['idvehiculo'], $vehiculo['idcliente']);
+        
+        $historial = $this->vehiculoModel->obtenerHistorial($vehiculo['idvehiculo']);
+        // Si hay error en SQL, devolvemos array vacío para no romper el frontend
+        if (isset($historial['error'])) {
+            $historial = [];
+        }
 
         return [
             'vehiculo' => $vehiculo,

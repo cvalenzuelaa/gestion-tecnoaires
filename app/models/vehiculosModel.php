@@ -38,27 +38,12 @@ class VehiculosModel
 
     /**
      * Obtener historial combinado.
-     * Ordenes e Informes se buscan por idvehiculo.
-     * Cotizaciones y Facturas se buscan por idcliente (ya que no tienen idvehiculo en tu DB).
+     * Solo Ordenes e Informes (Trabajos realizados).
      */
-    public function obtenerHistorial($idvehiculo, $idcliente)
+    public function obtenerHistorial($idvehiculo)
     {
         try {
             $sql = "
-            -- Cotizaciones (Vinculadas al Cliente)
-            SELECT 
-                'cotizacion' as tipo,
-                c.idcotizacion as id,
-                c.folio as folio,
-                c.fecha_emision as fecha,
-                c.total_final as monto,
-                c.estado,
-                'Cotización Cliente' as descripcion
-            FROM cotizaciones c
-            WHERE c.idcliente = :idcliente
-            
-            UNION ALL
-            
             -- Ordenes de Servicio (Vinculadas al Vehículo)
             SELECT 
                 'orden' as tipo,
@@ -69,7 +54,7 @@ class VehiculosModel
                 o.estado,
                 o.solicitud_cliente as descripcion
             FROM ordenes_servicio o
-            WHERE o.idvehiculo = :idvehiculo
+            WHERE o.idvehiculo = :idv1
             
             UNION ALL
             
@@ -84,29 +69,16 @@ class VehiculosModel
                 i.observaciones as descripcion
             FROM informes_tecnicos i
             INNER JOIN ordenes_servicio os ON i.idorden = os.idorden
-            WHERE os.idvehiculo = :idvehiculo
-            
-            UNION ALL
-            
-            -- Facturas (Vinculadas al Cliente)
-            SELECT 
-                'factura' as tipo,
-                f.idfactura as id,
-                f.folio_sii as folio,
-                f.fecha_vencimiento as fecha,
-                f.monto as monto,
-                f.estado_pago as estado,
-                'Factura Cliente' as descripcion
-            FROM facturas f
-            WHERE f.idcliente = :idcliente
+            WHERE os.idvehiculo = :idv2
             
             ORDER BY fecha DESC
             LIMIT 50
             ";
             
             $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':idvehiculo', $idvehiculo, PDO::PARAM_STR);
-            $stmt->bindParam(':idcliente', $idcliente, PDO::PARAM_STR);
+            // Usamos parámetros únicos para evitar error HY093 con emulación desactivada
+            $stmt->bindParam(':idv1', $idvehiculo, PDO::PARAM_STR);
+            $stmt->bindParam(':idv2', $idvehiculo, PDO::PARAM_STR);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {

@@ -117,7 +117,7 @@ class DashboardAdmin {
             // El controlador devuelve objetos anidados: item.vehiculo, item.cliente, item.historial
             const v = item.vehiculo || {};
             const c = item.cliente || {};
-            const h = item.historial || [];
+            const h = Array.isArray(item.historial) ? item.historial : [];
             
             // Mapeo seguro de propiedades para evitar errores si vienen null
             const nombreCliente = c.nombre ? `${c.nombre} ${c.apellido || ''}` : 'Sin cliente';
@@ -219,8 +219,7 @@ class DashboardAdmin {
 
                             <!-- Cotizaciones y Facturas -->
                             <!-- Nota: El historial unificado ya trae cotizaciones y facturas, pero si necesitas separarlo: -->
-                            ${this.renderizarDocumentos(h.filter(x => x.tipo === 'cotizacion'), h.filter(x => x.tipo === 'factura'))}
-                        </div>
+                            <!-- Se eliminó visualización de cotizaciones/facturas en historial rápido a petición -->
 
                         <!-- Footer con Acciones -->
                         <div class="card-footer bg-light">
