@@ -15,6 +15,5 @@
     <!-- Estilos Personalizados -->
     <link rel="stylesheet" href="/assets/css/styles.css">
     <script defer src="/assets/js/headerAdmin.js"></script>
-    <script src="/assets/js/dashboard-admin.js"></script>
 </head>
 <body></body>

@@ -151,6 +151,49 @@ const validaEstado = (selectEstado, inputError) => {
     return true;
 };
 
+const validaPatente = (inputPatente, inputError) => {
+    // Valida formatos comunes chilenos como BH-IJ-12 o AB-12-34
+    const value = inputPatente.value.trim().toUpperCase();
+    const cleanValue = value.replace(/[^A-Z0-9]/g, '');
+
+    // Regex para 4 letras + 2 números (Nuevo) o 2 letras + 4 números (Antiguo)
+    const regex = /^([A-Z]{4}\d{2}|[A-Z]{2}\d{4})$/;
+
+    if (!cleanValue || cleanValue.length !== 6 || !regex.test(cleanValue)) {
+        inputError.textContent = 'Patente inválida (ej: BH-IJ-12).';
+        formatoInputError(inputPatente, inputError);
+        return false;
+    }
+    inputError.textContent = '';
+    formatoInputExito(inputPatente, inputError);
+    return true;
+};
+
+const attachPatenteMask = (inputPatente) => {
+    if (!inputPatente) return;
+
+    const format = (value) => {
+        let clean = value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        if (clean.length > 6) {
+            clean = clean.substring(0, 6);
+        }
+        
+        // Formato XX-XX-XX
+        let formatted = '';
+        for (let i = 0; i < clean.length; i++) {
+            if (i > 0 && i % 2 === 0) {
+                formatted += '-';
+            }
+            formatted += clean[i];
+        }
+        return formatted;
+    };
+
+    inputPatente.addEventListener('input', (e) => {
+        e.target.value = format(e.target.value);
+    });
+};
+
 const formatoInputError = (inputControl, inputError) => {
     if (inputError) inputError.style.display = 'block';
     if (inputControl) inputControl.style.border = '2px solid rgba(255,107,107,0.9)';
@@ -258,4 +301,16 @@ const attachTelefonoMask = (inputTelefono) => {
         inputTelefono.value = combined.length > 0 ? rebuild(combined) : '';
         setTimeout(setCursorToEnd, 0);
     });
+};
+
+const togglePassword = (inputId, iconId) => {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = "password";
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
 };

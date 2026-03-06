@@ -15,7 +15,7 @@ class ClientesModel
     {
         try {
             // Alias rut_empresa as rut for frontend compatibility
-            $sql = "SELECT *, rut_empresa as rut FROM clientes ORDER BY fecha_registro DESC";
+            $sql = "SELECT *, rut_empresa as rut FROM clientes WHERE estado = 1 ORDER BY fecha_registro DESC";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -105,12 +105,11 @@ class ClientesModel
     public function softDelete($id)
     {
         try {
-            // Hard delete as there is no 'estado' column
-            $sql = "DELETE FROM clientes WHERE idcliente = :id";
+            $sql = "UPDATE clientes SET estado = 0 WHERE idcliente = :id";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindParam(':id', $id, PDO::PARAM_STR);
             $stmt->execute();
-            return ($stmt->rowCount() > 0) ? ["success" => "Cliente eliminado permanentemente."] : ["error" => "No se pudo eliminar."];
+            return ($stmt->rowCount() > 0) ? ["success" => "Cliente eliminado."] : ["error" => "No se pudo eliminar."];
         } catch (PDOException $e) {
             return ["error" => $e->getMessage()];
         }

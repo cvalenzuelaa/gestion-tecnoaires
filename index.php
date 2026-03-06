@@ -19,19 +19,14 @@ if (!isset($user['usuario']) || empty($user['usuario'])) {
 
 // A. Vistas del ADMIN
 $paginasAdmin = [
-    'dashboard_admin', 'usuarios', 'clientes', 'vehiculos', 
+    'dashboard', 'usuarios', 'clientes', 'vehiculos', 
     'ordenes', 'cotizaciones', 'informes', 'facturas', 'perfil'
 ];
 
 // B. Vistas de la SECRETARIA
 $paginasSecretaria = [
-    'dashboard_recepcion', 'clientes', 'vehiculos', 
-    'ordenes', 'cotizaciones', 'facturas', 'perfil'
-];
-
-// C. Vistas del TÉCNICO
-$paginasTecnico = [
-    'mis_trabajos', 'crear_informe', 'historial_vehiculo', 'perfil'
+    'dashboard', 'clientes', 'vehiculos', 
+    'ordenes', 'cotizaciones','informes', 'facturas', 'perfil'
 ];
 
 // --------------------------------------------------------------------------
@@ -43,22 +38,22 @@ $rol = $user['rol']; // Asegúrate que tu Login también guarde el 'rol' en la s
 
 switch ($rol) {
     case 'admin':
-        if ($nav === '') $nav = 'dashboard_admin'; // Página de inicio del Admin
+        if ($nav === '') $nav = 'dashboard'; // Página de inicio del Admin
         
         if (in_array($nav, $paginasAdmin)) {
             include_once('./app/viewer/' . $nav . '.php');
         } else {
-            include_once('./app/viewer/error/error404.php');
+            include_once('./app/viewer/error/error.404.php');
         }
         break;
 
     case 'secretaria':
-        if ($nav === '') $nav = 'dashboard_recepcion'; // Página de inicio de la Secretaria
+        if ($nav === '') $nav = 'dashboard'; // Página de inicio de la Secretaria
 
         if (in_array($nav, $paginasSecretaria)) {
             include_once('./app/viewer/' . $nav . '.php');
         } else {
-            include_once('./app/viewer/error/error404.php');
+            include_once('./app/viewer/error/error.404.php');
         }
         break;
 

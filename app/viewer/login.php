@@ -14,6 +14,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="shortcut icon" href="/assets/img/tecnoaires_logo.png" type="image/x-icon" />
     <link rel="stylesheet" href="/assets/css/styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <script src="/assets/js/globales.js"></script>
     <script defer src="/assets/js/login.js"></script>
     <title>Gestión TecnoAires</title>
@@ -29,7 +30,10 @@
             </div>
             <div class="form-group">
                 <label for="pass">Contraseña:</label>
-                <input type="password" id="pass" name="pass" autocomplete="off" />
+                <div style="position: relative;">
+                    <input type="password" id="pass" name="pass" autocomplete="off" style="padding-right: 35px; width: 100%; box-sizing: border-box;" />
+                    <i class="fas fa-eye" id="iconLoginPass" onclick="togglePassword('pass', 'iconLoginPass')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #666;"></i>
+                </div>
                 <small id="pass-error" style="color:red; display:none">Contraseña inválida</small>
             </div>
             <button type="submit" class="btn-login" id="btn-login">INICIAR SESIÓN</button>

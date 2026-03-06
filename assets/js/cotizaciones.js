@@ -1,6 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     cargarClientes();
-    calcularTotales();
+    agregarFila(); // Iniciar con una fila
+
+    // Al cambiar cliente, cargar sus vehículos
+    document.getElementById('idcliente').addEventListener('change', (e) => {
+        cargarVehiculos(e.target.value);
+    });
 });
 
 async function cargarClientes() {
@@ -18,12 +23,46 @@ async function cargarClientes() {
             clientes.forEach(c => {
                 const option = document.createElement('option');
                 option.value = c.idcliente;
-                option.textContent = `${c.rut || ''} - ${c.nombre}`;
+                option.textContent = `${c.rut_empresa || c.rut || ''} - ${c.razon_social || c.nombre}`;
                 select.appendChild(option);
             });
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error cargando clientes:', error);
+    }
+}
+
+async function cargarVehiculos(idCliente) {
+    const select = document.getElementById('idvehiculo');
+    select.innerHTML = '<option value="">Cargando...</option>';
+    
+    if (!idCliente) {
+        select.innerHTML = '<option value="">Seleccione un cliente primero...</option>';
+        return;
+    }
+
+    try {
+        const response = await fetch('/app/controllers/vehiculosController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getByCliente', idcliente: idCliente })
+        });
+        const vehiculos = await response.json();
+        select.innerHTML = '<option value="">Seleccione un vehículo...</option>';
+        
+        if (Array.isArray(vehiculos) && vehiculos.length > 0) {
+            vehiculos.forEach(v => {
+                const option = document.createElement('option');
+                option.value = v.idvehiculo;
+                option.textContent = `${v.patente} - ${v.marca} ${v.modelo}`;
+                select.appendChild(option);
+            });
+        } else {
+            select.innerHTML = '<option value="">Este cliente no tiene vehículos registrados</option>';
+        }
+    } catch (error) {
+        console.error('Error cargando vehículos:', error);
+        select.innerHTML = '<option value="">Error al cargar vehículos</option>';
     }
 }
 
@@ -52,22 +91,22 @@ function eliminarFila(btn) {
 }
 
 function calcularTotales() {
-    let neto = 0;
+    let totalNeto = 0;
     document.querySelectorAll('.fila-detalle').forEach(row => {
-        const cant = parseFloat(row.querySelector('.cantidad').value) || 0;
+        const cantidad = parseFloat(row.querySelector('.cantidad').value) || 0;
         const precio = parseFloat(row.querySelector('.precio').value) || 0;
-        const totalLinea = cant * precio;
+        const totalLinea = cantidad * precio;
         
         row.querySelector('.total-linea').value = formatearMoneda(totalLinea);
-        neto += totalLinea;
+        totalNeto += totalLinea;
     });
 
-    const iva = neto * 0.19;
-    const total = neto + iva;
+    const iva = totalNeto * 0.19;
+    const totalFinal = totalNeto + iva;
 
-    document.getElementById('lblNeto').textContent = formatearMoneda(neto);
+    document.getElementById('lblNeto').textContent = formatearMoneda(totalNeto);
     document.getElementById('lblIva').textContent = formatearMoneda(iva);
-    document.getElementById('lblTotal').textContent = formatearMoneda(total);
+    document.getElementById('lblTotal').textContent = formatearMoneda(totalFinal);
 }
 
 function formatearMoneda(valor) {
@@ -77,7 +116,6 @@ function formatearMoneda(valor) {
 document.getElementById('formCotizacion').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Recopilar datos
     const detalles = [];
     document.querySelectorAll('.fila-detalle').forEach(row => {
         detalles.push({
@@ -91,39 +129,32 @@ document.getElementById('formCotizacion').addEventListener('submit', async (e) =
     const data = {
         accion: 'insert',
         idcliente: formData.get('idcliente'),
+        idvehiculo: formData.get('idvehiculo'), // Enviamos el vehículo seleccionado
         validez_dias: formData.get('validez_dias'),
-        detalles: JSON.stringify(detalles) // Enviamos detalles como JSON string
+        detalles: JSON.stringify(detalles)
     };
 
     try {
-        // Nota: Aquí deberías apuntar a un controller que maneje la generación del Excel
-        // Por ahora simulamos el envío al cotizacionesController
         const response = await fetch('/app/controllers/cotizacionesController.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams(data)
         });
-        
         const res = await response.json();
         
-        if (res.success) {
-            // Mostrar modal y link de descarga (simulado)
+        if (res.success && res.url_archivo) {
             const modal = new bootstrap.Modal(document.getElementById('modalExitoCotizacion'));
-            // Si el backend devuelve la URL del archivo generado:
-            if (res.url_archivo) {
-                document.getElementById('btnDescargarExcel').href = res.url_archivo;
-            }
+            document.getElementById('btnDescargarExcel').href = res.url_archivo;
             modal.show();
             e.target.reset();
-            // Resetear tabla
             document.getElementById('tbodyDetalles').innerHTML = '';
             agregarFila();
             calcularTotales();
         } else {
-            alert(res.error || 'Error al guardar');
+            alert(res.error || 'Ocurrió un error al generar la cotización.');
         }
     } catch (error) {
         console.error(error);
-        alert('Error de conexión');
+        alert('Error de conexión al servidor.');
     }
 });

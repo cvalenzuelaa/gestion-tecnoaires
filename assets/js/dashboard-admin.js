@@ -1,5 +1,8 @@
 class DashboardAdmin {
     constructor() {
+        // Verificar si estamos en la página del dashboard antes de iniciar
+        if (!document.getElementById('resultados_container')) return;
+
         this.initElements();
         this.bindEvents();
     }
@@ -13,14 +16,12 @@ class DashboardAdmin {
         this.btnBuscar = document.getElementById('btn_buscar');
         this.btnLimpiar = document.getElementById('btn_limpiar');
         this.resultadosContainer = document.getElementById('resultados_container');
-        
-        // Elementos para Nueva Orden
-        this.btnGuardarOrden = document.getElementById('btnGuardarOrden');
-        this.btnGuardarOrden.addEventListener('click', () => this.guardarNuevaOrden());
     }
 
     // Vincular eventos a los botones
     bindEvents() {
+        if (!this.btnBuscar) return;
+
         this.btnBuscar.addEventListener('click', () => this.buscar());
         this.btnLimpiar.addEventListener('click', () => this.limpiar());
 
@@ -92,13 +93,13 @@ class DashboardAdmin {
 
             // Verificar si hay error en la respuesta
             if (resultado.error) {
-                this.mostrarError(resultado.mensaje || 'Error en la búsqueda');
+                this.mostrarError(resultado.error);
                 return;
             }
 
             // Mostrar resultados
-            if (resultado.data && resultado.data.length > 0) {
-                this.renderizarResultados(resultado.data);
+            if (Array.isArray(resultado) && resultado.length > 0) {
+                this.renderizarResultados(resultado);
             } else {
                 this.mostrarSinResultados();
             }
@@ -168,11 +169,7 @@ class DashboardAdmin {
                                                 <td>${v.modelo || '-'}</td>
                                             </tr>
                                             <tr>
-                                                <td class="fw-bold">Año:</td>
-                                                <td>${v.anio || 'N/A'}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="fw-bold">Color:</td>
+                                                <td class="fw-bold">Descripción:</td>
                                                 <td>${v.descripcion || 'N/A'}</td>
                                             </tr>
                                         </table>
@@ -205,32 +202,15 @@ class DashboardAdmin {
                                                 <td class="fw-bold">Dirección:</td>
                                                 <td>${c.direccion || 'N/A'}</td>
                                             </tr>
-                                            <tr>
-                                                <td class="fw-bold">Ciudad:</td>
-                                                <td>${c.ciudad || 'N/A'}</td>
-                                            </tr>
                                         </table>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Historial de Órdenes -->
-                            ${this.renderizarHistorial(h)}
-
-                            <!-- Cotizaciones y Facturas -->
-                            <!-- Nota: El historial unificado ya trae cotizaciones y facturas, pero si necesitas separarlo: -->
-                            <!-- Se eliminó visualización de cotizaciones/facturas en historial rápido a petición -->
-
+                            
                         <!-- Footer con Acciones -->
                         <div class="card-footer bg-light">
                             <button class="btn btn-sm btn-primary me-2" onclick="verDetalles('${v.idvehiculo}')">
                                 <i class="fas fa-eye me-1"></i>Ver Detalles Completos
-                            </button>
-                            <button class="btn btn-sm btn-success me-2" onclick="crearOrden('${v.idvehiculo}', '${v.marca} ${v.modelo}', '${v.patente}')">
-                                <i class="fas fa-plus me-1"></i>Crear Orden
-                            </button>
-                            <button class="btn btn-sm btn-secondary" onclick="descargarReporte('${v.idvehiculo}')">
-                                <i class="fas fa-download me-1"></i>Descargar Reporte
                             </button>
                         </div>
                     </div>
@@ -263,12 +243,9 @@ class DashboardAdmin {
                     <table class="table table-sm table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th>Orden #</th>
+                                <th>Folio</th>
                                 <th>Fecha</th>
-                                <th>Servicio</th>
-                                <th>Estado</th>
-                                <th>Técnico</th>
-                                <th>Acciones</th>
+                                <th>Descripción del servicio</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -278,16 +255,9 @@ class DashboardAdmin {
         historial.filter(h => h.tipo === 'orden').forEach(orden => {
             html += `
                 <tr>
-                    <td><strong>#${orden.id}</strong></td>
+                    <td><strong>${orden.folio || 'S/F'}</strong></td>
                     <td>${this.formatearFecha(orden.fecha)}</td>
-                    <td>${orden.descripcion || 'Servicio General'}</td>
-                    <td>${this.obtenerBadgeEstado(orden.estado)}</td>
-                    <td>-</td>
-                    <td>
-                        <button class="btn btn-xs btn-info" onclick="verOrden('${orden.id}')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
+                    <td>${orden.descripcion || 'Sin descripción'}</td>
                 </tr>
             `;
         });
@@ -368,61 +338,6 @@ class DashboardAdmin {
 
         html += '</div>';
         return html;
-    }
-
-    // Guardar Nueva Orden
-    async guardarNuevaOrden() {
-        const form = document.getElementById('formNuevaOrden');
-        const errorDiv = document.getElementById('errorNuevaOrden');
-        const btn = this.btnGuardarOrden;
-        
-        const idVehiculo = document.getElementById('orden_id_vehiculo').value;
-        const solicitud = document.getElementById('orden_solicitud').value.trim();
-        const estado = document.getElementById('orden_estado').value;
-
-        if (!solicitud) {
-            errorDiv.textContent = 'La solicitud del cliente es obligatoria.';
-            errorDiv.classList.remove('d-none');
-            return;
-        }
-
-        try {
-            btn.disabled = true;
-            btn.textContent = 'Guardando...';
-            errorDiv.classList.add('d-none');
-
-            const datos = new URLSearchParams({
-                accion: 'insert',
-                idvehiculo: idVehiculo,
-                solicitud_cliente: solicitud,
-                estado: estado
-            });
-
-            const response = await fetch('/app/controllers/ordenesController.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: datos
-            });
-
-            const res = await response.json();
-
-            if (res.success) {
-                // Cerrar modal y recargar búsqueda para ver la nueva orden
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaOrden'));
-                modal.hide();
-                form.reset();
-                alert('Orden creada exitosamente');
-                this.buscar(); // Refrescar resultados
-            } else {
-                throw new Error(res.error || 'Error al crear la orden');
-            }
-        } catch (error) {
-            errorDiv.textContent = error.message;
-            errorDiv.classList.remove('d-none');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Crear Orden';
-        }
     }
 
     // Obtener badge según estado
@@ -527,14 +442,46 @@ async function verDetalles(idVehiculo) {
         // Como el controller devuelve un array, tomamos el primero (búsqueda exacta por ID)
         const data = res[0];
         
-        // Renderizamos usando una instancia temporal del Dashboard para aprovechar sus métodos
+        // Instancia temporal para usar formateadores
         const dashboard = new DashboardAdmin();
-        // Hack: Limpiamos el container temporalmente para generar el HTML solo de este item
-        const tempContainer = document.createElement('div');
-        dashboard.resultadosContainer = tempContainer;
-        dashboard.renderizarResultados([data]);
         
-        modalBody.innerHTML = tempContainer.innerHTML;
+        // Construimos el HTML del modal manualmente para tener control total
+        let html = `
+            <div class="container-fluid">
+                <!-- Información General -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5 class="border-bottom pb-2 text-primary"><i class="fas fa-car me-2"></i>Vehículo</h5>
+                        <p class="mb-1"><strong>Patente:</strong> ${data.vehiculo.patente}</p>
+                        <p class="mb-1"><strong>Marca/Modelo:</strong> ${data.vehiculo.marca} ${data.vehiculo.modelo}</p>
+                        <p class="mb-1"><strong>Tipo:</strong> ${data.vehiculo.tipo}</p>
+                        <p class="mb-0"><strong>Descripción:</strong> ${data.vehiculo.descripcion || '-'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="border-bottom pb-2 text-primary"><i class="fas fa-user me-2"></i>Cliente</h5>
+                        <p class="mb-1"><strong>Nombre:</strong> ${data.cliente.nombre}</p>
+                        <p class="mb-1"><strong>RUT:</strong> ${data.cliente.rut_empresa || data.cliente.rut}</p>
+                        <p class="mb-1"><strong>Contacto:</strong> ${data.cliente.telefono || data.cliente.email}</p>
+                        <p class="mb-0"><strong>Dirección:</strong> ${data.cliente.direccion || '-'}</p>
+                    </div>
+                </div>
+
+                <!-- Historial con Scroll -->
+                <h5 class="mb-3 text-secondary"><i class="fas fa-history me-2"></i>Historial de Servicios</h5>
+                <div class="border rounded p-2 bg-light" style="max-height: 400px; overflow-y: auto;">
+                    ${dashboard.renderizarHistorial(data.historial)}
+                </div>
+
+                <!-- Botón de Descarga -->
+                <div class="d-grid gap-2 mt-4 pt-3 border-top">
+                    <button class="btn btn-success btn-lg" onclick="descargarReporte('${data.vehiculo.idvehiculo}')">
+                        <i class="fas fa-file-pdf me-2"></i>Descargar Historial Completo (PDF)
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        modalBody.innerHTML = html;
 
     } catch (e) {
         console.error(e);
@@ -542,19 +489,8 @@ async function verDetalles(idVehiculo) {
     }
 }
 
-function crearOrden(idVehiculo, descripcionVehiculo, patente) {
-    const modal = new bootstrap.Modal(document.getElementById('modalNuevaOrden'));
-    
-    document.getElementById('orden_id_vehiculo').value = idVehiculo;
-    document.getElementById('orden_vehiculo_info').value = `${descripcionVehiculo} (${patente})`;
-    document.getElementById('orden_solicitud').value = '';
-    document.getElementById('errorNuevaOrden').classList.add('d-none');
-    
-    modal.show();
-}
-
 function descargarReporte(idVehiculo) {
-    alert('Funcionalidad de descarga de reporte en construcción para ID: ' + idVehiculo);
+    window.open('/app/controllers/vehiculosController.php?accion=generarReporteHistorial&id=' + idVehiculo, '_blank');
 }
 
 async function verOrden(idOrden) {

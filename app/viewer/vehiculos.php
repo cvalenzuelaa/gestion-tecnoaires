@@ -61,6 +61,7 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Patente <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="patente" name="patente" required>
+                            <small id="errorPatente" class="text-danger" style="display:none"></small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Tipo</label>
@@ -96,7 +97,7 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="guardarVehiculo()">Guardar</button>
             </div>
         </div>

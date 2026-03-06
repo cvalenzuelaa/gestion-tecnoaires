@@ -6,7 +6,6 @@ let ordenesMap = {};
 
 async function cargarOrdenesPendientes() {
     try {
-        // Usamos el controller de ordenes para traer todas
         const response = await fetch('/app/controllers/ordenesController.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -17,11 +16,10 @@ async function cargarOrdenesPendientes() {
         
         if (Array.isArray(ordenes)) {
             ordenes.forEach(o => {
-                // Filtramos visualmente las que no estén terminadas si se desea
                 ordenesMap[o.idorden] = o;
                 const option = document.createElement('option');
                 option.value = o.idorden;
-                option.textContent = `OS: ${o.folio || o.idorden} - ${o.fecha_ingreso}`;
+                option.textContent = `OS: ${o.folio || o.idorden} - ${o.fecha_ingreso} - ${o.nombre_cliente || o.cliente || 'Cliente no registrado'}`;
                 select.appendChild(option);
             });
         }
@@ -46,21 +44,14 @@ document.getElementById('formInforme').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const formData = new FormData(e.target);
-    const data = {
-        accion: 'insert', // Asumiendo que informesController maneja insert
-        idorden: formData.get('idorden'),
-        trabajo_realizado: formData.get('trabajo_realizado'),
-        repuestos: formData.get('repuestos'),
-        observaciones: formData.get('observaciones')
-    };
+    formData.append('accion', 'insert');
 
     try {
         // Aquí apuntarías a informesController.php
         // Este controller debe usar PHPWord para abrir template.docx y reemplazar variables
         const response = await fetch('/app/controllers/informesController.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams(data)
+            body: formData // Enviamos FormData directamente para soportar archivos
         });
         
         const res = await response.json();

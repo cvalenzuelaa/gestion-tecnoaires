@@ -1,10 +1,16 @@
 <?php
-// Cargar librerías de Composer para Excel
+// Cargar librerías
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../models/cotizacionesModel.php';
 require_once __DIR__ . '/../models/clientesModel.php';
+require_once __DIR__ . '/../models/vehiculosModel.php';
+require_once __DIR__ . '/../sesiones/session.php'; // 1. Importar archivo de sesión
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
+
+// 2. Iniciar sesión para capturar el ID
+$session = new Session();
+$userSession = $session->getSession();
 
 $accion = $_POST['accion'] ?? null;
 if ($accion == null) {
@@ -22,7 +28,7 @@ switch ($accion) {
         echo json_encode($obj->getById($_POST['id'] ?? null));
         break;
     case 'insert':
-        echo json_encode($obj->insert($_POST));
+        echo json_encode($obj->insert($_POST, $userSession)); // Pasamos la sesión
         break;
     case 'softDelete':
         echo json_encode($obj->softDelete($_POST['id'] ?? null));
@@ -36,24 +42,33 @@ class CotizacionesController
 {
     private $model;
     private $clienteModel;
+    private $vehiculoModel;
 
     public function __construct()
     {
         $this->model = new CotizacionesModel();
         $this->clienteModel = new ClientesModel();
+        $this->vehiculoModel = new VehiculosModel();
     }
 
     public function getAll() { return $this->model->getAll(); }
     public function getById($id) { return $this->model->getById($id); }
     public function softDelete($id) { return $this->model->softDelete($id); }
 
-    public function insert($arr) {
+    public function insert($arr, $userSession) {
         try {
+            // Validar que el usuario esté logueado
+            if (!$userSession) return ["error" => "Sesión no iniciada"];
+
             // 1. Obtener datos del cliente
             $cliente = $this->clienteModel->getById($arr['idcliente']);
             if (!$cliente) return ["error" => "Cliente no encontrado"];
 
-            // 2. Procesar detalles (vienen como JSON string desde el JS)
+            // 1.5 Obtener datos del vehículo
+            $vehiculo = $this->vehiculoModel->getById($arr['idvehiculo']);
+            if (!$vehiculo) return ["error" => "Vehículo no encontrado"];
+
+            // 2. Procesar detalles
             $detalles = json_decode($arr['detalles'], true);
             
             // 3. Generar Excel
@@ -67,36 +82,49 @@ class CotizacionesController
             $spreadsheet = IOFactory::load($rutaPlantilla);
             $sheet = $spreadsheet->getActiveSheet();
 
-            // --- CONFIGURACIÓN DE CELDAS (AJUSTA ESTO A TU PLANTILLA) ---
             $folio = 'COT-' . date('Y') . '-' . rand(1000, 9999);
             
-            $sheet->setCellValue('E4', $folio);                 // Celda Folio
-            $sheet->setCellValue('E5', date('d/m/Y'));          // Celda Fecha
-            $sheet->setCellValue('B8', $cliente['nombre']);     // Celda Nombre Cliente
-            $sheet->setCellValue('B9', $cliente['rut_empresa']);// Celda RUT
-            $sheet->setCellValue('B10', $cliente['direccion']); // Celda Dirección
+            $sheet->setCellValue('F5', $folio);
+            $sheet->setCellValue('F6', date('d/m/Y'));
+            $sheet->setCellValue('B13', $cliente['nombre']);
+            $sheet->setCellValue('B11', $cliente['rut_empresa']);
             
-            // Llenar items (empezando en fila 14 por ejemplo)
-            $fila = 14; 
+            // Nuevas ubicaciones solicitadas
+            $sheet->setCellValue('F7', $arr['validez_dias'] . ' días'); // Días de validez
+            $sheet->getStyle('F7')->getFont()->setBold(true); // Negrita para la validez
+            $sheet->setCellValue('A40', $vehiculo['marca'] . ' ' . $vehiculo['modelo']); // Modelo
+            $sheet->setCellValue('E39', $vehiculo['patente']); // Patente
+            
+            $fila = 16; 
             $totalNeto = 0;
+            $currencyFormat = '$ #,##0'; // Formato: $ 1.000.000
 
             foreach ($detalles as $item) {
-                $sheet->setCellValue('A' . $fila, $item['cantidad']);
-                $sheet->setCellValue('B' . $fila, $item['descripcion']);
+                $sheet->setCellValue('A' . $fila, $item['descripcion']);
+                $sheet->setCellValue('D' . $fila, $item['cantidad']);
                 $sheet->setCellValue('E' . $fila, $item['precio']);
-                
                 $totalLinea = $item['cantidad'] * $item['precio'];
                 $sheet->setCellValue('F' . $fila, $totalLinea);
+                
+                // Aplicar formato moneda a las celdas de precio y total
+                $sheet->getStyle('E' . $fila)->getNumberFormat()->setFormatCode($currencyFormat);
+                $sheet->getStyle('F' . $fila)->getNumberFormat()->setFormatCode($currencyFormat);
                 
                 $totalNeto += $totalLinea;
                 $fila++;
             }
 
-            // Totales (si tu Excel no tiene fórmulas automáticas)
             $iva = $totalNeto * 0.19;
             $totalFinal = $totalNeto + $iva;
+
+            // Totales en ubicaciones específicas
+            $sheet->setCellValue('F33', $totalNeto);
+            $sheet->setCellValue('F34', $iva);
+            $sheet->setCellValue('F35', $totalFinal);
             
-            // Guardar archivo
+            // Aplicar formato moneda a los totales
+            $sheet->getStyle('F33:F35')->getNumberFormat()->setFormatCode($currencyFormat);
+
             $nombreArchivo = 'Cotizacion_' . $folio . '.xlsx';
             $rutaGuardado = __DIR__ . '/../../assets/docs/cotizaciones/';
             if (!is_dir($rutaGuardado)) mkdir($rutaGuardado, 0777, true);
@@ -104,14 +132,16 @@ class CotizacionesController
             $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
             $writer->save($rutaGuardado . $nombreArchivo);
 
-            // 4. Guardar en BD
+            // 4. Guardar en BD con el ID de la sesión corregido
             $arr['folio'] = $folio;
             $arr['total_neto'] = $totalNeto;
             $arr['iva'] = $iva;
             $arr['total_final'] = $totalFinal;
             $arr['estado'] = 'borrador';
             $arr['ruta_archivo'] = '/assets/docs/cotizaciones/' . $nombreArchivo;
-            $arr['idusuario'] = '1'; // ID temporal o tomar de sesión
+            
+            // CORRECCIÓN AQUÍ: Capturamos el id de la sesión
+            $arr['idusuario'] = $userSession['idusuario']; 
 
             $resBD = $this->model->insert($arr);
 
@@ -125,7 +155,7 @@ class CotizacionesController
             }
 
         } catch (Exception $e) {
-            return ["error" => "Error generando Excel: " . $e->getMessage()];
+            return ["error" => "Error: " . $e->getMessage()];
         }
     }
 }

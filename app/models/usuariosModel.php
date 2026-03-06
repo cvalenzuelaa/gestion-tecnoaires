@@ -29,11 +29,11 @@ private $conn = null;
     }
 
     
-    public function getAll() {
+    public function getAll($estado = 1) {
         try {
-            $sql = "SELECT * FROM usuarios ORDER BY estado DESC, nombre ASC";
+            $sql = "SELECT * FROM usuarios WHERE estado = ? ORDER BY nombre ASC";
             $stmt = $this->conn->prepare($sql);
-            $stmt->execute();
+            $stmt->execute([$estado]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Error en getAll: " . $e->getMessage());

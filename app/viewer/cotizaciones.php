@@ -7,7 +7,7 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div class="page-title mb-0">
                 <h1><i class="fas fa-file-invoice-dollar me-3"></i>Generar Cotización</h1>
-                <p class="mb-0">Crea cotizaciones basadas en plantilla Excel</p>
+                <p class="mb-0">Generar nueva cotización en formato Excel</p>
             </div>
         </div>
 
@@ -22,11 +22,17 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
                                 <option value="">Cargando clientes...</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Vehículo <span class="text-danger">*</span></label>
+                            <select class="form-select" id="idvehiculo" name="idvehiculo" required>
+                                <option value="">Seleccione un cliente primero...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">Validez (Días)</label>
                             <input type="number" class="form-control" name="validez_dias" value="15">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label class="form-label">Fecha Emisión</label>
                             <input type="date" class="form-control" name="fecha_emision" value="<?php echo date('Y-m-d'); ?>" readonly>
                         </div>

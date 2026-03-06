@@ -79,7 +79,7 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="guardarCliente()">Guardar</button>
             </div>
         </div>

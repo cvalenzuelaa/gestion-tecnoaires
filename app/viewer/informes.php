@@ -6,14 +6,14 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
     <div class="container-dashboard animate-slideUp">
         <div class="page-title mb-4">
             <h1><i class="fas fa-file-word me-3"></i>Informe Técnico</h1>
-            <p class="mb-0">Generar informe de servicio para cliente (Word)</p>
+            <p class="mb-0">Generar informe de servicio para el cliente en formato Word</p>
         </div>
 
         <div class="row justify-content-center">
             <div class="col-lg-10">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
-                        <form id="formInforme">
+                        <form id="formInforme" enctype="multipart/form-data">
                             <!-- Selección de Orden -->
                             <div class="mb-4">
                                 <label class="form-label fw-bold">Orden de Servicio Asociada <span class="text-danger">*</span></label>
@@ -30,19 +30,53 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
                             <hr>
 
                             <!-- Campos del Informe -->
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Trabajo Realizado</label>
-                                <textarea class="form-control" name="trabajo_realizado" rows="5" placeholder="Describa detalladamente las labores efectuadas..." required></textarea>
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">Faena</label>
+                                    <input type="text" class="form-control" name="faena" placeholder="Ej: Lechería Ancali">
+                                </div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Repuestos / Insumos Utilizados</label>
-                                <textarea class="form-control" name="repuestos" rows="3" placeholder="Listado de materiales..."></textarea>
+                                <label class="form-label fw-bold">Falla Reportada (Observaciones)</label>
+                                <textarea class="form-control" name="observaciones" rows="3" placeholder="Descripción de la falla reportada..." required></textarea>
                             </div>
 
-                            <div class="mb-4">
-                                <label class="form-label fw-bold">Observaciones / Recomendaciones</label>
-                                <textarea class="form-control" name="observaciones" rows="3" placeholder="Notas finales para el cliente..."></textarea>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Causa de la Falla</label>
+                                <textarea class="form-control" name="causa_falla" rows="3" placeholder="Diagnóstico de la causa..."></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Procedimiento / Trabajo Realizado</label>
+                                <textarea class="form-control" name="trabajo_realizado" rows="5" placeholder="Detalle de la reparación..." required></textarea>
+                            </div>
+
+                            <hr>
+                            
+                            <!-- Fotografías -->
+                            <h5 class="mb-3">Respaldo Fotográfico</h5>
+                            <div class="row mb-4">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Foto 1</label>
+                                    <input type="file" class="form-control" name="foto1" accept="image/*">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Foto 2</label>
+                                    <input type="file" class="form-control" name="foto2" accept="image/*">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Foto 3</label>
+                                    <input type="file" class="form-control" name="foto3" accept="image/*">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Foto 4</label>
+                                    <input type="file" class="form-control" name="foto4" accept="image/*">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Foto 5</label>
+                                    <input type="file" class="form-control" name="foto5" accept="image/*">
+                                </div>
                             </div>
 
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end">

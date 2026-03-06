@@ -1,42 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
     cargarVehiculos();
-    cargarSelectClientes();
+    
+    // Inicializar máscara y validación de patente
+    const inputPatente = document.getElementById('patente');
+    if (inputPatente) {
+        attachPatenteMask(inputPatente);
+    }
 });
 
-const modalVehiculo = new bootstrap.Modal(document.getElementById('modalVehiculo'));
-let vehiculosData = [];
-let clientesMap = {}; // Para mostrar nombre del cliente en la tabla
-
-async function cargarSelectClientes() {
-    try {
-        const response = await fetch('/app/controllers/clientesController.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ accion: 'getAll' })
-        });
-        const clientes = await response.json();
-        
-        const select = document.getElementById('idcliente');
-        select.innerHTML = '<option value="">Seleccione un cliente...</option>';
-        
-        if (Array.isArray(clientes)) {
-            clientes.forEach(c => {
-                clientesMap[c.idcliente] = c.nombre + (c.razon_social ? ` (${c.razon_social})` : '');
-                const option = document.createElement('option');
-                option.value = c.idcliente;
-                option.textContent = `${c.rut || ''} - ${c.nombre}`;
-                select.appendChild(option);
-            });
-        }
-        // Recargar tabla para actualizar nombres de clientes si llegaron después
-        if (vehiculosData.length > 0) renderizarTabla(vehiculosData);
-
-    } catch (error) {
-        console.error('Error cargando clientes:', error);
-    }
-}
-
 async function cargarVehiculos() {
+    const tbody = document.getElementById('tbodyVehiculos');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3"><div class="spinner-border text-primary"></div></td></tr>';
+
     try {
         const response = await fetch('/app/controllers/vehiculosController.php', {
             method: 'POST',
@@ -44,116 +19,152 @@ async function cargarVehiculos() {
             body: new URLSearchParams({ accion: 'getAll' })
         });
         const data = await response.json();
-        vehiculosData = data;
-        renderizarTabla(data);
-    } catch (error) {
-        console.error('Error cargando vehículos:', error);
-    }
-}
-
-function renderizarTabla(data) {
-    const tbody = document.getElementById('tbodyVehiculos');
-    if (!data || data.length === 0 || data.error) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay vehículos registrados</td></tr>';
-        return;
-    }
-
-    let html = '';
-    data.forEach(v => {
-        const nombreCliente = clientesMap[v.idcliente] || 'Cargando...';
         
-        html += `
-            <tr>
-                <td>
-                    <div class="fw-bold">${v.patente}</div>
-                    <small class="text-muted text-xs">ID: ${v.idvehiculo}</small>
-                </td>
-                <td>
-                    <div class="fw-bold">${v.marca} ${v.modelo}</div>
-                    <span class="badge bg-info text-dark">${v.tipo}</span>
-                </td>
-                <td><i class="fas fa-user me-1 text-secondary"></i> ${nombreCliente}</td>
-                <td>${v.descripcion || '-'}</td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editarVehiculo('${v.idvehiculo}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="eliminarVehiculo('${v.idvehiculo}')">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
-    tbody.innerHTML = html;
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay vehículos registrados.</td></tr>';
+            return;
+        }
+
+        data.forEach(v => {
+            const row = `
+                <tr>
+                    <td class="fw-bold">${v.patente}</td>
+                    <td>${v.marca} ${v.modelo}</td>
+                    <td><span class="badge bg-secondary">${v.tipo}</span></td>
+                    <td>${v.descripcion || '-'}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarVehiculo('${v.idvehiculo}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarVehiculo('${v.idvehiculo}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+    } catch (error) {
+        console.error(error);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar datos.</td></tr>';
+    }
 }
 
 function abrirModalVehiculo() {
     document.getElementById('formVehiculo').reset();
     document.getElementById('idvehiculo').value = '';
     document.getElementById('tituloModalVehiculo').textContent = 'Nuevo Vehículo';
-    modalVehiculo.show();
+    
+    // Limpiar validaciones visuales
+    const inputPatente = document.getElementById('patente');
+    const errorPatente = document.getElementById('errorPatente');
+    inputPatente.style.border = '';
+    errorPatente.style.display = 'none';
+    
+    cargarClientesSelect();
+    new bootstrap.Modal(document.getElementById('modalVehiculo')).show();
 }
 
-function editarVehiculo(id) {
-    const vehiculo = vehiculosData.find(v => v.idvehiculo === id);
-    if (!vehiculo) return;
+async function cargarClientesSelect(seleccionado = null) {
+    const select = document.getElementById('idcliente');
+    if (select.options.length > 1 && !seleccionado) return;
 
-    document.getElementById('idvehiculo').value = vehiculo.idvehiculo;
-    document.getElementById('idcliente').value = vehiculo.idcliente;
-    document.getElementById('patente').value = vehiculo.patente;
-    document.getElementById('tipo').value = vehiculo.tipo;
-    document.getElementById('marca').value = vehiculo.marca;
-    document.getElementById('modelo').value = vehiculo.modelo;
-    document.getElementById('descripcion').value = vehiculo.descripcion;
-
-    document.getElementById('tituloModalVehiculo').textContent = 'Editar Vehículo';
-    modalVehiculo.show();
+    try {
+        const response = await fetch('/app/controllers/clientesController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getAll' })
+        });
+        const clientes = await response.json();
+        select.innerHTML = '<option value="">Seleccione un cliente...</option>';
+        clientes.forEach(c => {
+            const selected = seleccionado == c.idcliente ? 'selected' : '';
+            select.innerHTML += `<option value="${c.idcliente}" ${selected}>${c.rut_empresa || c.rut} - ${c.nombre}</option>`;
+        });
+    } catch (e) { console.error(e); }
 }
 
 async function guardarVehiculo() {
     const form = document.getElementById('formVehiculo');
-    const formData = new FormData(form);
-    const id = formData.get('idvehiculo');
-    const accion = id ? 'update' : 'insert';
-
-    if (!formData.get('idcliente') || !formData.get('patente') || !formData.get('marca')) {
-        alert('Complete los campos obligatorios (Cliente, Patente, Marca)');
+    if (!form.checkValidity()) {
+        form.reportValidity();
         return;
     }
 
-    const params = new URLSearchParams(formData);
-    params.append('accion', accion);
-
-    const response = await fetch('/app/controllers/vehiculosController.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
-    });
-    const res = await response.json();
-
-    if (res.success) {
-        modalVehiculo.hide();
-        cargarVehiculos();
-        alert(res.success);
-    } else {
-        alert(res.error || 'Error al guardar');
+    // Validación estricta de Patente antes de enviar
+    const inputPatente = document.getElementById('patente');
+    const errorPatente = document.getElementById('errorPatente');
+    if (!validaPatente(inputPatente, errorPatente)) {
+        return; // Detiene el guardado si la patente no es válida
     }
+
+    const formData = new FormData(form);
+    const id = formData.get('idvehiculo');
+    formData.append('accion', id ? 'update' : 'insert');
+
+    try {
+        const response = await fetch('/app/controllers/vehiculosController.php', {
+            method: 'POST',
+            body: formData
+        });
+        const res = await response.json();
+
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalVehiculo')).hide();
+            cargarVehiculos();
+            alert(res.success);
+        } else {
+            alert(res.error || 'Error al guardar');
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function editarVehiculo(id) {
+    try {
+        const response = await fetch('/app/controllers/vehiculosController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getById', id: id })
+        });
+        const v = await response.json();
+        
+        if (v && !v.error) {
+            document.getElementById('idvehiculo').value = v.idvehiculo;
+            document.getElementById('patente').value = v.patente;
+            document.getElementById('tipo').value = v.tipo;
+            document.getElementById('marca').value = v.marca;
+            document.getElementById('modelo').value = v.modelo;
+            document.getElementById('descripcion').value = v.descripcion;
+            
+            document.getElementById('tituloModalVehiculo').textContent = 'Editar Vehículo';
+            
+            // Limpiar validaciones visuales al abrir editar
+            const inputPatente = document.getElementById('patente');
+            const errorPatente = document.getElementById('errorPatente');
+            inputPatente.style.border = '';
+            errorPatente.style.display = 'none';
+
+            await cargarClientesSelect(v.idcliente);
+            
+            new bootstrap.Modal(document.getElementById('modalVehiculo')).show();
+        } else {
+            alert(v.error || 'Error al cargar vehículo');
+        }
+    } catch (e) { console.error(e); }
 }
 
 async function eliminarVehiculo(id) {
     if (!confirm('¿Estás seguro de eliminar este vehículo?')) return;
 
-    const response = await fetch('/app/controllers/vehiculosController.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ accion: 'softDelete', id: id })
-    });
-    const res = await response.json();
-
-    if (res.success) {
-        cargarVehiculos();
-    } else {
-        alert(res.error || 'Error al eliminar');
-    }
+    try {
+        const response = await fetch('/app/controllers/vehiculosController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'eliminar', id: id })
+        });
+        const res = await response.json();
+        if (res.success) {
+            cargarVehiculos();
+        } else {
+            alert(res.error);
+        }
+    } catch (e) { console.error(e); }
 }

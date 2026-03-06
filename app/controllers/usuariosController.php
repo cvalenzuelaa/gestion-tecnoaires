@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../models/usuariosModel.php';
+require_once __DIR__ . '/../sesiones/session.php';
 
 $accion = $_POST['accion'] ?? null;
 if ($accion == null) {
@@ -14,6 +15,11 @@ switch ($accion) {
         $usuario = $_POST['usuario'];
         $pass = sha1($_POST['pass']);
         echo json_encode($obj->login([$usuario, $pass]));
+        break;
+
+    case 'logout':
+        $session = new Session();
+        echo json_encode($session->logout());
         break;
 
     case 'insert':
@@ -65,11 +71,16 @@ switch ($accion) {
         break;
 
     case 'getAll':
-        echo json_encode($obj->getAll());
+        $estado = $_POST['estado'] ?? 1;
+        echo json_encode($obj->getAll($estado));
         break;
 
     case 'getById':
         echo json_encode($obj->getById($_POST['idusuario']));
+        break;
+
+    case 'updateProfile':
+        echo json_encode($obj->updateProfile($_POST));
         break;
 }
 
@@ -141,14 +152,57 @@ class UsuariosController
         return $this->userModel->activate($id);
     }
 
-    public function getAll()
+    public function getAll($estado = 1)
     {
-        return $this->userModel->getAll();
+        return $this->userModel->getAll($estado);
     }
 
     public function getById($id)
     {
         return $this->userModel->getById($id);
+    }
+
+    public function updateProfile($arr)
+    {
+        // 1. Obtener datos actuales para preservar el rol
+        $currentUser = $this->userModel->getById($arr['idusuario']);
+        if (!$currentUser) return ["error" => "Usuario no encontrado."];
+        
+        $rol = $currentUser['rol'];
+        $success = false;
+        $logout = false;
+
+        // 2. Actualizar según si viene password o no
+        if (isset($arr['pass']) && !empty($arr['pass'])) {
+            // Update con contraseña
+            $success = $this->userModel->update([
+                'usuario' => $arr['usuario'],
+                'nombre' => $arr['nombre'],
+                'apellido' => $arr['apellido'],
+                'pass' => $arr['pass'],
+                'rol' => $rol,
+                'idusuario' => $arr['idusuario']
+            ]);
+            if ($success) {
+                $session = new Session();
+                $session->logout(); // Destruir sesión
+                $logout = true;
+            }
+        } else {
+            // Update sin contraseña
+            $success = $this->updateWithoutPass([$arr['usuario'], $arr['nombre'], $arr['apellido'], $rol, $arr['idusuario']]);
+        }
+
+        if ($success) {
+            // Actualizar datos en sesión si no hubo logout
+            if (!$logout) {
+                $session = new Session();
+                $session->updateSession(['nombre' => $arr['nombre'], 'apellido' => $arr['apellido']]);
+            }
+            return ["success" => "Perfil actualizado correctamente.", "logout" => $logout];
+        } else {
+            return ["error" => "No se pudo actualizar el perfil."];
+        }
     }
 }
 ?>

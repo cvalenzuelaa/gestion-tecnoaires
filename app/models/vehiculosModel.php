@@ -14,7 +14,7 @@ class VehiculosModel
     public function getAll()
     {
         try {
-            $sql = "SELECT * FROM vehiculos";
+            $sql = "SELECT * FROM vehiculos WHERE estado = 1"; // Solo activos
             $stmt = $this->conn->prepare($sql);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -27,6 +27,7 @@ class VehiculosModel
     {
         try {
             $sql = "SELECT * FROM vehiculos WHERE idvehiculo = :id";
+            $sql = "SELECT * FROM vehiculos WHERE idvehiculo = :id AND estado = 1"; // Solo activos
             $stmt = $this->conn->prepare($sql);
             $stmt->bindParam(':id', $id, PDO::PARAM_STR);
             $stmt->execute();
@@ -66,17 +67,17 @@ class VehiculosModel
                 i.fecha_informe as fecha,
                 NULL as monto,
                 'generado' as estado,
-                i.observaciones as descripcion
+                i.trabajo_realizado as descripcion
             FROM informes_tecnicos i
             INNER JOIN ordenes_servicio os ON i.idorden = os.idorden
             WHERE os.idvehiculo = :idv2
             
-            ORDER BY fecha DESC
-            LIMIT 50
-            ";
+            ORDER BY fecha ASC
+            "; 
+            // NOTA: Quité el 'LIMIT 50' para que traiga el historial completo y 
+            // cambié 'DESC' por 'ASC' para ordenar del más antiguo al más actual.
             
             $stmt = $this->conn->prepare($sql);
-            // Usamos parámetros únicos para evitar error HY093 con emulación desactivada
             $stmt->bindParam(':idv1', $idvehiculo, PDO::PARAM_STR);
             $stmt->bindParam(':idv2', $idvehiculo, PDO::PARAM_STR);
             $stmt->execute();
@@ -126,12 +127,25 @@ class VehiculosModel
     public function softDelete($id)
     {
         try {
-            // Hard delete
-            $sql = "DELETE FROM vehiculos WHERE idvehiculo = :id";
+            $sql = "UPDATE vehiculos SET estado = 0 WHERE idvehiculo = :id"; // Soft delete
             $stmt = $this->conn->prepare($sql);
             $stmt->bindParam(':id', $id, PDO::PARAM_STR);
             $stmt->execute();
             return ($stmt->rowCount() > 0) ? ["success" => "Vehículo eliminado."] : ["error" => "No se pudo eliminar."];
+            return ($stmt->rowCount() > 0) ? ["success" => "Vehículo eliminado correctamente."] : ["error" => "No se pudo eliminar."];
+        } catch (PDOException $e) {
+            return ["error" => $e->getMessage()];
+        }
+    }
+
+    public function getByCliente($idcliente)
+    {
+        try {
+            $sql = "SELECT * FROM vehiculos WHERE idcliente = :id AND estado = 1"; // Solo activos
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(':id', $idcliente, PDO::PARAM_STR);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             return ["error" => $e->getMessage()];
         }
