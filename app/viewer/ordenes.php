@@ -13,15 +13,21 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
         <div class="card shadow-sm">
             <div class="card-body p-4">
                 <form id="formOrdenServicio">
-                    <!-- Datos del Cliente y Vehículo -->
+                    <!-- Selección de Cotización -->
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Cliente <span class="text-danger">*</span></label>
-                            <select class="form-select" id="idcliente" name="idcliente" required></select>
+                            <label class="form-label fw-bold">Seleccionar Cotización Aprobada <span class="text-danger">*</span></label>
+                            <select class="form-select" id="idcotizacion" name="idcotizacion" required>
+                                <option value="">Cargando cotizaciones...</option>
+                            </select>
+                            <div class="form-text">Al seleccionar una cotización, se cargarán automáticamente el cliente, vehículo y servicios.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Vehículo (Patente) <span class="text-danger">*</span></label>
-                            <select class="form-select" id="idvehiculo" name="idvehiculo" required></select>
+                            <select class="form-select" id="idvehiculo" name="idvehiculo" required disabled>
+                                <option value="">Seleccione una cotización primero</option>
+                            </select>
+                            <input type="hidden" id="idcliente" name="idcliente">
                         </div>
                     </div>
 
@@ -81,11 +87,22 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
                     <!-- Totales -->
                     <div class="row justify-content-end mb-4">
                         <div class="col-md-4">
-                            <ul class="list-group">
-                                <li class="list-group-item d-flex justify-content-between align-items-center fs-5">
-                                    <strong>Total:</strong> <span id="lblTotal" class="fw-bold">$0</span>
-                                </li>
-                            </ul>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold text-end">Sub-Total:</td>
+                                        <td class="text-end"><span id="lblSubTotal">$0</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-end">IVA (19%):</td>
+                                        <td class="text-end"><span id="lblIva">$0</span></td>
+                                    </tr>
+                                    <tr class="table-active">
+                                        <td class="fw-bold text-end fs-5">Total:</td>
+                                        <td class="text-end fs-5 fw-bold"><span id="lblTotal">$0</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 

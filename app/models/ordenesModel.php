@@ -14,7 +14,14 @@ class OrdenesModel
     public function getById($id)
     {
         try {
-            $sql = "SELECT * FROM ordenes_servicio WHERE idorden = :id";
+            $sql = "SELECT 
+                        os.*, 
+                        v.idcliente, 
+                        c.total_final as monto_cotizacion
+                    FROM ordenes_servicio os
+                    LEFT JOIN vehiculos v ON os.idvehiculo = v.idvehiculo
+                    LEFT JOIN cotizaciones c ON os.idcotizacion = c.idcotizacion
+                    WHERE os.idorden = :id";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindParam(':id', $id);
             $stmt->execute();
@@ -27,7 +34,7 @@ class OrdenesModel
     public function getAll()
     {
         try {
-            $sql = "SELECT os.idorden, os.folio, os.fecha_ingreso, os.estado, v.patente, c.nombre as nombre_cliente
+            $sql = "SELECT os.idorden, os.folio, os.fecha_ingreso, os.solicitud_cliente, os.estado, v.patente, c.nombre as nombre_cliente
                     FROM ordenes_servicio os
                     JOIN vehiculos v ON os.idvehiculo = v.idvehiculo
                     JOIN clientes c ON v.idcliente = c.idcliente                    ORDER BY os.fecha_ingreso DESC";
@@ -68,8 +75,8 @@ class OrdenesModel
             $idOrden = $stmtUniq->fetchColumn();
 
             // Ajustado a la estructura real de la base de datos (sin observaciones, sin ruta_archivo)
-            $sql = "INSERT INTO ordenes_servicio (idorden, idvehiculo, folio, solicitud_cliente, estado) 
-                    VALUES (:idorden, :idvehiculo, :folio, :solicitud, :estado)";
+            $sql = "INSERT INTO ordenes_servicio (idorden, idvehiculo, idcotizacion, folio, solicitud_cliente, estado) 
+                    VALUES (:idorden, :idvehiculo, :idcotizacion, :folio, :solicitud, :estado)";
             
             // Mapear observaciones a solicitud_cliente si es necesario
             $solicitud = $datos['solicitud_cliente'] ?? ($datos['observaciones'] ?? '');
@@ -78,6 +85,7 @@ class OrdenesModel
             $stmt->execute([
                 ':idorden' => $idOrden,
                 ':idvehiculo' => $datos['idvehiculo'],
+                ':idcotizacion' => $datos['idcotizacion'] ?? null,
                 ':folio' => $datos['folio'],
                 ':solicitud' => $solicitud,
                 ':estado' => $datos['estado'] ?? 'ingresado'

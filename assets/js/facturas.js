@@ -1,5 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     cargarFacturas();
+    
+    // Listener para cargar datos al seleccionar una orden
+    const selectOrden = document.getElementById('idorden');
+    if(selectOrden) selectOrden.addEventListener('change', cargarDatosOrden);
 });
 
 async function cargarFacturas() {
@@ -82,8 +86,74 @@ function validarVencimiento(fechaVenc, estado) {
     return '';
 }
 
+async function cargarOrdenesParaFacturar() {
+    const select = document.getElementById('idorden');
+    select.innerHTML = '<option value="">Cargando...</option>';
+    try {
+        const response = await fetch('/app/controllers/ordenesController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getAll' })
+        });
+        const ordenes = await response.json();
+        select.innerHTML = '<option value="">Seleccione una orden...</option>';
+        
+        if (Array.isArray(ordenes)) {
+            ordenes.forEach(o => {
+                // Ajusta según los campos que devuelva tu getAll de ordenes
+                const texto = `OS: ${o.folio || o.idorden} - ${o.nombre_cliente || 'Cliente'} - ${o.fecha_ingreso || ''}`;
+                const option = document.createElement('option');
+                option.value = o.idorden;
+                option.textContent = texto;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando ordenes:', error);
+        select.innerHTML = '<option value="">Error al cargar</option>';
+    }
+}
+
+async function cargarDatosOrden() {
+    const idOrden = document.getElementById('idorden').value;
+    const inputClienteId = document.getElementById('idcliente');
+    const inputMonto = document.querySelector('input[name="monto"]');
+
+    if (!idOrden) {
+        inputClienteId.value = '';
+        inputMonto.value = '';
+        return;
+    }
+
+    try {
+        const response = await fetch('/app/controllers/ordenesController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getById', id: idOrden })
+        });
+        const orden = await response.json();
+
+        if (orden && !orden.error) {
+            // Setear el idcliente oculto
+            if (orden.idcliente) {
+                inputClienteId.value = orden.idcliente;
+            }
+            // Setear el monto desde el total de la cotización vinculada
+            if (orden.monto_cotizacion) {
+                inputMonto.value = parseFloat(orden.monto_cotizacion).toFixed(0);
+            }
+        } else {
+            inputClienteId.value = '';
+            inputMonto.value = '';
+            console.error("No se pudieron cargar los datos de la orden:", orden.error);
+        }
+    } catch (error) {
+        console.error('Error en fetch para cargar datos de orden:', error);
+    }
+}
+
 function abrirModalFactura() {
-    cargarClientesSelect();
+    cargarOrdenesParaFacturar();
     document.getElementById('formFactura').reset();
     document.getElementById('idfactura').value = '';
     document.getElementById('tituloModalFactura').textContent = 'Registrar Nueva Factura';
@@ -91,21 +161,28 @@ function abrirModalFactura() {
 }
 
 async function cargarClientesSelect() {
-    const select = document.getElementById('idcliente');
-    if (select.options.length > 1) return; // Ya cargado
+    const select = document.getElementById('idcliente');
+    
+    // VALIDACIÓN: Si no existe el elemento o no es un <select> (no tiene options), detenemos la función
+    if (!select || !select.options) {
+        console.warn("El elemento 'idcliente' no es un <select> válido.");
+        return; 
+    }
 
-    try {
-        const response = await fetch('/app/controllers/clientesController.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ accion: 'getAll' })
-        });
-        const clientes = await response.json();
-        select.innerHTML = '<option value="">Seleccione un cliente...</option>';
-        clientes.forEach(c => {
-            select.innerHTML += `<option value="${c.idcliente}">${c.rut_empresa} - ${c.nombre}</option>`;
-        });
-    } catch (e) { console.error(e); }
+    if (select.options.length > 1) return; // Ya cargado
+
+    try {
+        const response = await fetch('/app/controllers/clientesController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getAll' })
+        });
+        const clientes = await response.json();
+        select.innerHTML = '<option value="">Seleccione un cliente...</option>';
+        clientes.forEach(c => {
+            select.innerHTML += `<option value="${c.idcliente}">${c.rut_empresa} - ${c.nombre}</option>`;
+        });
+    } catch (e) { console.error(e); }
 }
 
 async function guardarFactura() {
@@ -164,34 +241,38 @@ async function cambiarEstado(id, estado) {
 }
 
 async function editarFactura(id) {
-    try {
-        const response = await fetch('/app/controllers/facturasController.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ accion: 'getById', id: id })
-        });
-        const data = await response.json();
-        
-        if (data && !data.error) {
-            const form = document.getElementById('formFactura');
+    try {
+        const response = await fetch('/app/controllers/facturasController.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accion: 'getById', id: id })
+        });
+        const data = await response.json();
+        
+        if (data && !data.error) {
+            const form = document.getElementById('formFactura');
+            
+            // 1. Asignamos el ID oculto para saber qué factura actualizar
             form.idfactura.value = data.idfactura;
-            
-            // Asegurar que los clientes estén cargados antes de asignar valor
-            await cargarClientesSelect();
-            form.idcliente.value = data.idcliente;
-            
-            form.folio_sii.value = data.folio_sii;
-            form.monto.value = data.monto;
-            form.fecha_emision.value = data.fecha_emision;
+            
+            // 2. Asignamos SOLO los campos permitidos para la edición
+            form.folio_sii.value = data.folio_sii;
+            form.monto.value = data.monto;
+            form.fecha_emision.value = data.fecha_emision;
 
-            document.getElementById('tituloModalFactura').textContent = 'Editar Factura';
-            new bootstrap.Modal(document.getElementById('modalFactura')).show();
-        } else {
-            alert('No se pudo cargar la información de la factura.');
-        }
-    } catch (error) {
-        console.error(error);
-    }
+            // Nota sobre el archivo adjunto:
+            // Los campos <input type="file"> no se pueden rellenar por defecto 
+            // mediante JavaScript por medidas de seguridad de los navegadores.
+            // Si el input del archivo está en el formulario, aparecerá vacío.
+
+            document.getElementById('tituloModalFactura').textContent = 'Editar Factura';
+            new bootstrap.Modal(document.getElementById('modalFactura')).show();
+        } else {
+            alert('No se pudo cargar la información de la factura.');
+        }
+    } catch (error) {
+        console.error("Error al editar factura:", error);
+    }
 }
 
 async function eliminarFactura(id) {

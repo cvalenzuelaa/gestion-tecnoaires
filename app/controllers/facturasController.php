@@ -56,7 +56,7 @@ class FacturasController
 
     public function guardar($datos, $archivos)
     {
-        if (empty($datos['idcliente']) || empty($datos['folio_sii']) || empty($datos['monto'])) {
+        if (empty($datos['idcliente']) || empty($datos['folio_sii']) || empty($datos['monto']) || empty($datos['idorden'])) {
             return ["error" => "Faltan datos obligatorios."];
         }
 

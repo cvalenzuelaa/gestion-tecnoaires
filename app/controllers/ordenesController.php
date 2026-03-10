@@ -97,14 +97,15 @@ class OrdenesController
 
             // 5. Llenar tabla de servicios (hasta 10 filas)
             $rowCount = 0;
-            $total = 0;
+            $subTotal = 0;
             foreach ($detalles as $index => $item) {
                 if ($index >= 10) break; // Limitar a 10 items
                 $rowCount = $index + 1;
                 
-                $precio = (float)$item['precio'];
-                $cantidad = (float)$item['cantidad'];
-                $total += $precio * $cantidad;
+                // Asegurar conversión correcta de números (reemplazar coma por punto si viene)
+                $precio = (float)str_replace(',', '.', $item['precio']);
+                $cantidad = (float)str_replace(',', '.', $item['cantidad']);
+                $subTotal += $precio * $cantidad;
 
                 $templateProcessor->setValue("cantidad_{$rowCount}", htmlspecialchars($item['cantidad']));
                 $templateProcessor->setValue("descripcion_{$rowCount}", htmlspecialchars($item['descripcion']));
@@ -118,8 +119,14 @@ class OrdenesController
                 $templateProcessor->setValue("valor_{$i}", '');
             }
 
-            // Asignar el total a la plantilla
-            $templateProcessor->setValue('total', '$' . number_format($total, 0, ',', '.'));
+            // Cálculos de totales
+            $iva = $subTotal * 0.19;
+            $totalFinal = $subTotal + $iva;
+
+            // Asignar valores a la plantilla
+            $templateProcessor->setValue('sub-total', '$' . number_format($subTotal, 0, ',', '.'));
+            $templateProcessor->setValue('iva', '$' . number_format($iva, 0, ',', '.'));
+            $templateProcessor->setValue('total', '$' . number_format($totalFinal, 0, ',', '.'));
 
             // 6. Guardar el archivo Word generado
             $nombreArchivo = 'OS_' . $nuevoFolio . '.docx';
@@ -133,6 +140,7 @@ class OrdenesController
             // 7. Guardar en la base de datos
             $datosParaBD = [
                 'idvehiculo' => $idVehiculo,
+                'idcotizacion' => $datos['idcotizacion'] ?? null,
                 'folio' => $nuevoFolio,
                 'observaciones' => $observaciones,
                 'detalles' => $detalles,

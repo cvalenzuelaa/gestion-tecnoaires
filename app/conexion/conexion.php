@@ -1,8 +1,8 @@
 <?php
 define('DB_HOST', 'localhost');
-define('DB_USER', 'Aiep');
-define('DB_PASS', 'aiep');
-define('DB_NAME', 'gestiontecnoaires');
+define('DB_USER', 'tecnoair_gestion');
+define('DB_PASS', 'bhFdA5LjuhFtnMvtvnGH');
+define('DB_NAME', 'tecnoair_gestion');
 define('DB_CHARSET', 'utf8mb4');
 define('DB_DSN', 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET);
 

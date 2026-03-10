@@ -33,8 +33,8 @@ $homeLink = ($user['rol'] === 'admin') ? 'dashboard' : (($user['rol'] === 'secre
                         <span>Gestión</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark">
-                        <li><a class="dropdown-item" href="/?nav=ordenes"><i class="fas fa-list-check"></i> Órdenes</a></li>
                         <li><a class="dropdown-item" href="/?nav=cotizaciones"><i class="fas fa-file-invoice-dollar"></i> Cotizaciones</a></li>
+                        <li><a class="dropdown-item" href="/?nav=ordenes"><i class="fas fa-list-check"></i> Órdenes</a></li>
                         <li><a class="dropdown-item" href="/?nav=facturas"><i class="fas fa-receipt"></i> Facturas</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="/?nav=informes"><i class="fas fa-chart-bar"></i> Informes</a></li>

@@ -70,12 +70,13 @@ class FacturasModel
             $fechaVencimiento = clone $fechaEmision;
             $fechaVencimiento->modify('+30 days');
 
-            $sql = "INSERT INTO facturas (idfactura, idcliente, folio_sii, fecha_emision, fecha_vencimiento, monto, estado_pago, ruta_archivo_pdf, estado) 
-                    VALUES (UUID_SHORT(), :idcliente, :folio_sii, :fecha_emision, :fecha_vencimiento, :monto, 'pendiente', :ruta_archivo_pdf, 1)";
+            $sql = "INSERT INTO facturas (idfactura, idcliente, idorden, folio_sii, fecha_emision, fecha_vencimiento, monto, estado_pago, ruta_archivo_pdf, estado) 
+                    VALUES (UUID_SHORT(), :idcliente, :idorden, :folio_sii, :fecha_emision, :fecha_vencimiento, :monto, 'pendiente', :ruta_archivo_pdf, 1)";
             
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
                 ':idcliente' => $datos['idcliente'],
+                ':idorden' => $datos['idorden'] ?? null,
                 ':folio_sii' => $datos['folio_sii'],
                 ':fecha_emision' => $datos['fecha_emision'],
                 ':fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),

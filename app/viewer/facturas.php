@@ -51,10 +51,13 @@ require_once('./app/viewer/plantillasAdmin/headerAdmin.php');
             <div class="modal-body">
                 <form id="formFactura" enctype="multipart/form-data">
                     <input type="hidden" id="idfactura" name="idfactura">
+                    <!-- Campos ocultos que se llenarán automáticamente -->
+                    <input type="hidden" id="idcliente" name="idcliente">
+                    
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Cliente <span class="text-danger">*</span></label>
-                        <select class="form-select" id="idcliente" name="idcliente" required>
-                            <option value="">Cargando...</option>
+                        <label class="form-label fw-bold">Orden de Servicio a Facturar <span class="text-danger">*</span></label>
+                        <select class="form-select" id="idorden" name="idorden" required>
+                            <option value="">Cargando órdenes...</option>
                         </select>
                     </div>
                     
